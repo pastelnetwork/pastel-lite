@@ -3,16 +3,17 @@
 // Copyright (c) 2009-2013 The Bitcoin Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
+
+#include <vector>
+
+#include <sodium.h>
+
 #include "crypto/ripemd160.h"
 #include "crypto/sha256.h"
 #include "prevector.h"
 #include "serialize.h"
 #include "uint256.h"
 #include "version.h"
-
-#include "sodium.h"
-
-#include <vector>
 
 typedef uint256 ChainCode;
 

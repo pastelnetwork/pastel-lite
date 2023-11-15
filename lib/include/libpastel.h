@@ -1,14 +1,17 @@
-//
-// Created by Pastel Developers on 11/9/23.
-//
+#pragma once
+// Copyright (c) 2018-2023 The Pastel core developers
+// Distributed under the MIT software license, see the accompanying
+// file COPYING or https://www.opensource.org/licenses/mit-license.php.
 
-#ifndef PASTEL_LIGHT_LIBPASTEL_H
-#define PASTEL_LIGHT_LIBPASTEL_H
+#include <string>
+#include "chain.h"
+
+using namespace std;
 
 class Pastel {
-public:
-    Pastel() = default;
-    void doSomething();
-};
+    std::map<NetworkMode, CChainParams*> m_Networks;
 
-#endif //PASTEL_LIGHT_LIBPASTEL_H
+public:
+    Pastel();
+    std::string GetNewAddress(NetworkMode mode);
+};

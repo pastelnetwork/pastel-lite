@@ -3,8 +3,8 @@
 
 int main() {
     Pastel lib;
-    lib.doSomething();
-    std::cout << "Done something with mylib!" << std::endl;
+    string address = lib.GetNewAddress(MAINNET);
+    std::cout << "New Address: " << address << std::endl;
     return 0;
 }
 

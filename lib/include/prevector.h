@@ -6,8 +6,6 @@
 #include <string.h>
 #include <iterator>
 
-#include <util.h>
-
 #pragma pack(push, 1)
 /** Implements a drop-in replacement for std::vector<T> which stores up to N
  *  elements directly (without heap allocation). The types Size and Diff are
@@ -176,13 +174,13 @@ private:
                     are called as necessary, but performance would be slightly degraded by doing so. */
                  char* temp = static_cast<char*>(realloc(_union.indirect, ((size_t)sizeof(T)) * new_capacity));
                  if (!temp)
-                     new_handler_terminate();
+                     throw std::bad_alloc();
                  _union.indirect = temp;
                 _union.capacity = new_capacity;
             } else {
                 char* new_indirect = static_cast<char*>(malloc(((size_t)sizeof(T)) * new_capacity));
                 if (!new_indirect)
-                    new_handler_terminate();
+                     throw std::bad_alloc();
                 // copy data from direct to indirect
                 const T* src = direct_ptr(0);
                 T* dst = reinterpret_cast<T*>(new_indirect);

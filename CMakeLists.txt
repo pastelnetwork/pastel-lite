@@ -9,7 +9,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 include(FetchContent)
 include(ExternalProject)
 
-# bitcoin/libsecp256k1
+# bitcoin/libsecp256k1cc
 FetchContent_Declare(
   libsecp256k1
   GIT_REPOSITORY https://github.com/bitcoin-core/secp256k1

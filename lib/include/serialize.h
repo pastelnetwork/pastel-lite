@@ -5,9 +5,6 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or https://www.opensource.org/licenses/mit-license.php.
 
-#include <compat.h>
-#include <compat/endian.h>
-
 #include <algorithm>
 #include <array>
 #include <assert.h>
@@ -27,8 +24,14 @@
 #include <optional>
 #include <stdexcept>
 
-#include <prevector.h>
-#include <enum_util.h>
+#include <sstream>
+#include <iomanip>
+//#include <format>
+
+#include "compat/compat.h"
+#include "compat/endian.h"
+#include "prevector.h"
+#include "enum_util.h"
 
 static constexpr uint32_t MAX_DATA_SIZE = 0x02000000;       // 33'554'432
 static constexpr uint32_t MAX_CONTAINER_SIZE = 0x100000;     // 1'048'576
@@ -823,13 +826,33 @@ void ReadProtectedSerializeMarker(Stream& is, const PROTECTED_DATA_TYPE expected
         throw std::ios_base::failure("protected serialization marker not found (eof)");
     uint8_t ch = 0;
     is >> ch;
-    if (ch != PROTECTED_SERIALIZE_MARKER)
-        throw std::ios_base::failure(strprintf("protected serialization marker not found, expected-0x%X, found-0x%X", PROTECTED_SERIALIZE_MARKER, static_cast<uint8_t>(ch)));
+    if (ch != PROTECTED_SERIALIZE_MARKER) {
+        // Apple Clang (15.0.0) still doesn't support std::format
+        // std::string error = std::format("protected serialization marker not found, expected-0x{:X}, found-0x{:X}",
+        //                        PROTECTED_SERIALIZE_MARKER, static_cast<uint8_t>(ch));
+        std::stringstream ss;
+        ss << "protected serialization marker not found, expected-0x"
+           << std::hex << std::uppercase << std::setfill('0') << std::setw(2) << PROTECTED_SERIALIZE_MARKER
+           << ", found-0x"
+           << std::hex << std::uppercase << std::setfill('0') << std::setw(2) << static_cast<uint8_t>(ch);
+        std::string error = ss.str();
+        throw std::ios_base::failure(error);
+    }
     if (is.empty())
         throw std::ios_base::failure("protected serialization data type not found (eof)");
     is >> ch;
-    if (ch != to_integral_type(expectedDataType))
-		throw std::ios_base::failure(strprintf("protected serialization data type mismatch, expected-0x%X, found-0x%X", to_integral_type(expectedDataType), static_cast<uint8_t>(ch)));
+    if (ch != to_integral_type(expectedDataType)) {
+        // Apple Clang (15.0.0) still doesn't support std::format
+        // std::string error = std::format("protected serialization data type mismatch, expected-0x{:X}, found-0x{:X}",
+        //                        to_integral_type(expectedDataType), static_cast<uint8_t>(ch));
+        std::stringstream ss;
+        ss << "protected serialization data type mismatch, expected-0x"
+           << std::hex << std::uppercase << std::setfill('0') << std::setw(2) << to_integral_type(expectedDataType)
+           << ", found-0x"
+           << std::hex << std::uppercase << std::setfill('0') << std::setw(2) << static_cast<uint8_t>(ch);
+        std::string error = ss.str();
+        throw std::ios_base::failure(error);
+    }
 }
 
 template<typename Stream>
@@ -839,14 +862,33 @@ void ReadProtectedSerializeMarkerAlt(Stream& is, const PROTECTED_DATA_TYPE expec
         throw std::ios_base::failure("protected serialization marker not found (eof)");
     uint8_t ch = 0;
     is >> ch;
-    if (ch != PROTECTED_SERIALIZE_MARKER)
-        throw std::ios_base::failure(strprintf("protected serialization marker not found, expected-0x%X, found-0x%X", PROTECTED_SERIALIZE_MARKER, static_cast<uint8_t>(ch)));
+    if (ch != PROTECTED_SERIALIZE_MARKER) {
+        // Apple Clang (15.0.0) still doesn't support std::format
+        // std::string error = std::format("protected serialization marker not found, expected-0x{:X}, found-0x{:X}",
+        //                        PROTECTED_SERIALIZE_MARKER, static_cast<uint8_t>(ch));
+        std::stringstream ss;
+        ss << "protected serialization marker not found, expected-0x"
+           << std::hex << std::uppercase << std::setfill('0') << std::setw(2) << PROTECTED_SERIALIZE_MARKER
+           << ", found-0x"
+           << std::hex << std::uppercase << std::setfill('0') << std::setw(2) << static_cast<uint8_t>(ch);
+        std::string error = ss.str();
+        throw std::ios_base::failure(error);
+    }
     if (is.empty())
         throw std::ios_base::failure("protected serialization data type not found (eof)");
     is >> ch;
-    if ((ch != to_integral_type(expectedDataType)) && (ch != to_integral_type(altDataType)))
-		throw std::ios_base::failure(strprintf("protected serialization data type mismatch, expected-0x%X or 0x%X, found-0x%X",
-            to_integral_type(expectedDataType), to_integral_type(altDataType), static_cast<uint8_t>(ch)));
+    if ((ch != to_integral_type(expectedDataType)) && (ch != to_integral_type(altDataType))) {
+        // Apple Clang (15.0.0) still doesn't support std::format
+        // std::string error = std::format("protected serialization data type mismatch, expected-0x{:X}, found-0x{:X}",
+        //                        to_integral_type(expectedDataType), static_cast<uint8_t>(ch));
+        std::stringstream ss;
+        ss << "protected serialization data type mismatch, expected-0x"
+           << std::hex << std::uppercase << std::setfill('0') << std::setw(2) << to_integral_type(expectedDataType)
+           << ", found-0x"
+           << std::hex << std::uppercase << std::setfill('0') << std::setw(2) << static_cast<uint8_t>(ch);
+        std::string error = ss.str();
+        throw std::ios_base::failure(error);
+    }
 }
 
 template<typename Stream>

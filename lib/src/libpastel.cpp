@@ -1,24 +1,34 @@
 //
 // Created by Pastel Developers on 11/9/23.
 //
-#include "libpastel.h"
 #include <iostream>
+#include "libpastel.h"
+#include "base58.h"
+#include "pubkey.h"
 
-#include <pubkey.h>
-#include <key_io.h>
+using namespace std;
 
-void Pastel::doSomething() {
-    std::cout << "Doing something inside mylib!" << std::endl;
+Pastel::Pastel(){
+    m_Networks[MAINNET] = new CMainnetParams();
+    m_Networks[TESTNET] = new CTestnetParams();
+    m_Networks[REGTEST] = new CRegtestParams();
 }
 
-void getnewaddress()
+static string encodePublicKey(const CKeyID& id, CChainParams* network)
+{
+    v_uint8 pubKey = network->Base58Prefix(CChainParams::Base58Type::PUBKEY_ADDRESS);
+    pubKey.insert(pubKey.end(), id.begin(), id.end());
+    return EncodeBase58Check(pubKey);
+}
+
+string Pastel::GetNewAddress(NetworkMode mode)
 {
     // Generate a new key that is added to wallet
     CPubKey newKey;
-    if (!pwalletMain->GetKeyFromPool(newKey))
-        throw;
+//    if (!pwalletMain->GetKeyFromPool(newKey))
+//        throw;
     CKeyID keyID = newKey.GetID();
 
-    KeyIO keyIO(Params());
-    keyIO.EncodeDestination(keyID);
+    CChainParams *network = m_Networks[mode];
+    return encodePublicKey(keyID, network);
 }
