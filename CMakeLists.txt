@@ -10,10 +10,13 @@ include(FetchContent)
 include(ExternalProject)
 
 # bitcoin/libsecp256k1cc
+set(BUILD_SHARED_LIBS OFF CACHE INTERNAL "")
+set(SECP256K1_DISABLE_SHARED ON CACHE INTERNAL "")
+set(SECP256K1_ENABLE_MODULE_RECOVERY ON CACHE INTERNAL "")
 FetchContent_Declare(
-  libsecp256k1
-  GIT_REPOSITORY https://github.com/bitcoin-core/secp256k1
-  GIT_TAG master  # or specific commit/tag
+        libsecp256k1
+        GIT_REPOSITORY https://github.com/bitcoin-core/secp256k1
+        GIT_TAG master  # or specific commit/tag
 )
 FetchContent_MakeAvailable(libsecp256k1)
 

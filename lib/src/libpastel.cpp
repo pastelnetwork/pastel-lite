@@ -5,6 +5,7 @@
 #include "libpastel.h"
 #include "base58.h"
 #include "pubkey.h"
+#include "key.h"
 
 using namespace std;
 
@@ -23,12 +24,17 @@ static string encodePublicKey(const CKeyID& id, CChainParams* network)
 
 string Pastel::GetNewAddress(NetworkMode mode)
 {
-    // Generate a new key that is added to wallet
-    CPubKey newKey;
-//    if (!pwalletMain->GetKeyFromPool(newKey))
-//        throw;
-    CKeyID keyID = newKey.GetID();
+    CKey secret;
+    secret.MakeNewKey(true);
 
+    CPubKey newKey = secret.GetPubKey();
+    assert(secret.VerifyPubKey(newKey));
+
+    // Get private key
+    secret.GetPrivKey();
+
+    // Get and encode public key
+    CKeyID keyID = newKey.GetID();
     CChainParams *network = m_Networks[mode];
     return encodePublicKey(keyID, network);
 }

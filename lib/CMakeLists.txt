@@ -10,6 +10,7 @@ target_include_directories(libpastel PUBLIC
 )
 
 target_include_directories(libpastel PRIVATE ${libsecp256k1_SOURCE_DIR}/include)
+target_link_libraries(libpastel PRIVATE secp256k1)
 target_link_libraries(libpastel PRIVATE OpenSSL::SSL OpenSSL::Crypto)
 target_link_libraries(libpastel PRIVATE unofficial-sodium::sodium unofficial-sodium::sodium_config_public)
 
