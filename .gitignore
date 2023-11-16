@@ -1,1 +1,5 @@
 cmake-build-debug/
+/build-wasm-debug/
+/build-wasm-release/
+/build-native-debug/
+/build-native-release/

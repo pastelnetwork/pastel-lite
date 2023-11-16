@@ -6,6 +6,9 @@
 #include "base58.h"
 #include "pubkey.h"
 #include "key.h"
+#ifdef __EMSCRIPTEN__
+#include <emscripten/bind.h>
+#endif
 
 using namespace std;
 
@@ -38,3 +41,12 @@ string Pastel::GetNewAddress(NetworkMode mode)
     CChainParams *network = m_Networks[mode];
     return encodePublicKey(keyID, network);
 }
+
+#ifdef __EMSCRIPTEN__
+EMSCRIPTEN_BINDINGS(PastelModule) {
+    emscripten::class_<Pastel>("Pastel")
+        .constructor<>()
+        .function("GetNewAddress", &Pastel::GetNewAddress);
+    // Add more bindings as needed
+}
+#endif

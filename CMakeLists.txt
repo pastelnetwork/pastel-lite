@@ -1,5 +1,4 @@
 cmake_minimum_required(VERSION 3.26)
-project(pastel_light)
 project(pastel_light VERSION 0.1 DESCRIPTION "Light Version of Pastel Node" LANGUAGES CXX)
 
 # Set the C++ standard for the project
@@ -20,12 +19,27 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(libsecp256k1)
 
-# libsodium
-find_package(unofficial-sodium CONFIG REQUIRED)
+if (NOT EMSCRIPTEN)
+    # libsodium
+    find_package(unofficial-sodium CONFIG REQUIRED)
 
-# OpenSSL
-find_package(OpenSSL REQUIRED)
+    # OpenSSL
+    find_package(OpenSSL REQUIRED)
 
-# Add subdirectories
-add_subdirectory(lib)
-add_subdirectory(app)
+    add_subdirectory(lib)
+    add_subdirectory(app)
+else() # EMSCRIPTEN
+    ExternalProject_Add(
+            libsodium
+            GIT_REPOSITORY https://github.com/jedisct1/libsodium.git
+            GIT_TAG stable
+            PREFIX ${CMAKE_BINARY_DIR}/libsodium
+            CONFIGURE_COMMAND <SOURCE_DIR>/configure --prefix=<INSTALL_DIR>
+            BUILD_COMMAND make
+            INSTALL_COMMAND make install
+            UPDATE_DISCONNECTED TRUE
+    )
+    set(libsodium_INCLUDE_DIR ${CMAKE_BINARY_DIR}/libsodium/include)
+
+    add_subdirectory(wasm)
+endif()
