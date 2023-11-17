@@ -20,3 +20,5 @@ target_link_libraries(libpastel PRIVATE unofficial-sodium::sodium unofficial-sod
 
 # Set the C++ standard for the library
 target_compile_features(libpastel PUBLIC cxx_std_20)
+
+

@@ -8,7 +8,7 @@
 #include "vector_types.h"
 #include "enum_util.h"
 
-enum NetworkMode {
+enum class NetworkMode {
     MAINNET = 0,
     TESTNET = 1,
     REGTEST = 2,

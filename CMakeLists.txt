@@ -8,18 +8,19 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 include(FetchContent)
 include(ExternalProject)
 
-# bitcoin/libsecp256k1cc
-set(BUILD_SHARED_LIBS OFF CACHE INTERNAL "")
-set(SECP256K1_DISABLE_SHARED ON CACHE INTERNAL "")
-set(SECP256K1_ENABLE_MODULE_RECOVERY ON CACHE INTERNAL "")
-FetchContent_Declare(
-        libsecp256k1
-        GIT_REPOSITORY https://github.com/bitcoin-core/secp256k1
-        GIT_TAG master  # or specific commit/tag
-)
-FetchContent_MakeAvailable(libsecp256k1)
-
 if (NOT EMSCRIPTEN)
+    set(BUILD_SHARED_LIBS OFF CACHE INTERNAL "")
+
+    # bitcoin/libsecp256k1cc
+    set(SECP256K1_DISABLE_SHARED ON CACHE INTERNAL "")
+    set(SECP256K1_ENABLE_MODULE_RECOVERY ON CACHE INTERNAL "")
+    FetchContent_Declare(
+            libsecp256k1
+            GIT_REPOSITORY https://github.com/bitcoin-core/secp256k1
+            GIT_TAG master  # or specific commit/tag
+    )
+    FetchContent_MakeAvailable(libsecp256k1)
+
     # libsodium
     find_package(unofficial-sodium CONFIG REQUIRED)
 
@@ -30,16 +31,33 @@ if (NOT EMSCRIPTEN)
     add_subdirectory(app)
 else() # EMSCRIPTEN
     ExternalProject_Add(
-            libsodium
-            GIT_REPOSITORY https://github.com/jedisct1/libsodium.git
-            GIT_TAG stable
-            PREFIX ${CMAKE_BINARY_DIR}/libsodium
-            CONFIGURE_COMMAND <SOURCE_DIR>/configure --prefix=<INSTALL_DIR>
-            BUILD_COMMAND make
-            INSTALL_COMMAND make install
-            UPDATE_DISCONNECTED TRUE
+        libsodium
+        GIT_REPOSITORY https://github.com/jedisct1/libsodium.git
+        GIT_TAG stable
+        PREFIX ${CMAKE_BINARY_DIR}/libsodium
+        CONFIGURE_COMMAND ""
+        BUILD_IN_SOURCE 1  # Build in the source directory
+        BUILD_COMMAND sh ${CMAKE_BINARY_DIR}/libsodium/src/libsodium/dist-build/wasm32-wasi.sh
+        INSTALL_COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_BINARY_DIR}/libsodium/src/libsodium/libsodium-wasm32-wasi ${CMAKE_SOURCE_DIR}/third_party/libsodium-wasm
+        LOG_DOWNLOAD ON
+        LOG_BUILD ON
+        LOG_INSTALL ON
     )
-    set(libsodium_INCLUDE_DIR ${CMAKE_BINARY_DIR}/libsodium/include)
+
+    # Add libsecp256k1 as an external project
+    ExternalProject_Add(
+        libsecp256k1
+        GIT_REPOSITORY https://github.com/bitcoin-core/secp256k1.git
+        GIT_TAG master  # or a specific commit/tag
+        PREFIX ${CMAKE_BINARY_DIR}/libsecp256k1
+        CONFIGURE_COMMAND ""
+        BUILD_IN_SOURCE 1  # Build in the source directory
+        BUILD_COMMAND "emconfigure ./configure && emmake make"
+        INSTALL_COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_BINARY_DIR}/libsecp256k1/src/libsecp256k1 ${CMAKE_SOURCE_DIR}/third_party/libsecp256k1
+        LOG_DOWNLOAD ON
+        LOG_BUILD ON
+        LOG_INSTALL ON
+    )
 
     add_subdirectory(wasm)
 endif()

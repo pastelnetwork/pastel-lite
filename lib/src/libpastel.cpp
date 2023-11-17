@@ -13,9 +13,9 @@
 using namespace std;
 
 Pastel::Pastel(){
-    m_Networks[MAINNET] = new CMainnetParams();
-    m_Networks[TESTNET] = new CTestnetParams();
-    m_Networks[REGTEST] = new CRegtestParams();
+    m_Networks[NetworkMode::MAINNET] = new CMainnetParams();
+    m_Networks[NetworkMode::TESTNET] = new CTestnetParams();
+    m_Networks[NetworkMode::REGTEST] = new CRegtestParams();
 }
 
 static string encodePublicKey(const CKeyID& id, CChainParams* network)
@@ -44,6 +44,11 @@ string Pastel::GetNewAddress(NetworkMode mode)
 
 #ifdef __EMSCRIPTEN__
 EMSCRIPTEN_BINDINGS(PastelModule) {
+    emscripten::enum_<NetworkMode>("NetworkMode")
+        .value("Mainnet", NetworkMode::MAINNET)
+        .value("Testnet", NetworkMode::TESTNET)
+        .value("Regtest", NetworkMode::REGTEST)
+        ;
     emscripten::class_<Pastel>("Pastel")
         .constructor<>()
         .function("GetNewAddress", &Pastel::GetNewAddress);
