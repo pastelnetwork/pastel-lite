@@ -64,7 +64,7 @@ export PATH=$PATH:/Users/name/emsdk/upstream/emscripten/
 ### 4. Install `zig`, if not already installed
 #### Linux
 ``` bash
-sudo apt install zig
+sudo snap install zig --classic --beta
 ```
 #### Mac
 ``` bash
