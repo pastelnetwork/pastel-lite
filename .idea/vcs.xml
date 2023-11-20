@@ -2,21 +2,6 @@
 <project version="4">
   <component name="VcsDirectoryMappings">
     <mapping directory="$PROJECT_DIR$" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/third_party/libsodium.js" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/third_party/libsodium.js/libsodium" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/third_party/openssl-wasm" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/third_party/openssl-wasm/openssl" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/third_party/openssl-wasm/openssl/cloudflare-quiche" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/third_party/openssl-wasm/openssl/cloudflare-quiche/quiche/deps/boringssl" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/third_party/openssl-wasm/openssl/fuzz/corpora" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/third_party/openssl-wasm/openssl/gost-engine" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/third_party/openssl-wasm/openssl/gost-engine/libprov" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/third_party/openssl-wasm/openssl/krb5" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/third_party/openssl-wasm/openssl/oqs-provider" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/third_party/openssl-wasm/openssl/pyca-cryptography" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/third_party/openssl-wasm/openssl/python-ecdsa" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/third_party/openssl-wasm/openssl/tlsfuzzer" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/third_party/openssl-wasm/openssl/tlslite-ng" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/third_party/openssl-wasm/openssl/wycheproof" vcs="Git" />
   </component>
 </project>

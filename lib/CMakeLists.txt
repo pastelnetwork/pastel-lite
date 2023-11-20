@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.26)
+cmake_minimum_required(VERSION 3.20)
 
 # Create a static library called 'libpastel'
 file(GLOB_RECURSE LIBPASTEL_SOURCES "*.cpp")

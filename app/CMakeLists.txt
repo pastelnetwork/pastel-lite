@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.16)
+cmake_minimum_required(VERSION 3.20)
 
 # Create an executable called 'pastel_light'
 add_executable(pastel_light main.cpp)

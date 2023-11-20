@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.26)
+cmake_minimum_required(VERSION 3.20)
 project(pastel_light VERSION 0.1 DESCRIPTION "Light Version of Pastel Node" LANGUAGES CXX)
 
 # Set the C++ standard for the project
@@ -30,34 +30,36 @@ if (NOT EMSCRIPTEN)
     add_subdirectory(lib)
     add_subdirectory(app)
 else() # EMSCRIPTEN
-    ExternalProject_Add(
-        libsodium
-        GIT_REPOSITORY https://github.com/jedisct1/libsodium.git
-        GIT_TAG stable
-        PREFIX ${CMAKE_BINARY_DIR}/libsodium
-        CONFIGURE_COMMAND ""
-        BUILD_IN_SOURCE 1  # Build in the source directory
-        BUILD_COMMAND sh ${CMAKE_BINARY_DIR}/libsodium/src/libsodium/dist-build/wasm32-wasi.sh
-        INSTALL_COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_BINARY_DIR}/libsodium/src/libsodium/libsodium-wasm32-wasi ${CMAKE_SOURCE_DIR}/third_party/libsodium-wasm
-        LOG_DOWNLOAD ON
-        LOG_BUILD ON
-        LOG_INSTALL ON
-    )
-
-    # Add libsecp256k1 as an external project
-    ExternalProject_Add(
-        libsecp256k1
-        GIT_REPOSITORY https://github.com/bitcoin-core/secp256k1.git
-        GIT_TAG master  # or a specific commit/tag
-        PREFIX ${CMAKE_BINARY_DIR}/libsecp256k1
-        CONFIGURE_COMMAND ""
-        BUILD_IN_SOURCE 1  # Build in the source directory
-        BUILD_COMMAND "emconfigure ./configure && emmake make"
-        INSTALL_COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_BINARY_DIR}/libsecp256k1/src/libsecp256k1 ${CMAKE_SOURCE_DIR}/third_party/libsecp256k1
-        LOG_DOWNLOAD ON
-        LOG_BUILD ON
-        LOG_INSTALL ON
-    )
+#    ExternalProject_Add(
+#        libsodium
+#        GIT_REPOSITORY https://github.com/jedisct1/libsodium.git
+#        GIT_TAG stable
+#        PREFIX ${CMAKE_BINARY_DIR}/libsodium
+#        CONFIGURE_COMMAND ""
+#        BUILD_IN_SOURCE 1  # Build in the source directory
+#        BUILD_COMMAND sh ${CMAKE_BINARY_DIR}/libsodium/src/libsodium/dist-build/emscripten.sh
+#        INSTALL_COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_BINARY_DIR}/libsodium/src/libsodium/libsodium-js ${CMAKE_BINARY_DIR}/libsodium-wasm
+#        LOG_DOWNLOAD ON
+#        LOG_BUILD ON
+#        LOG_INSTALL ON
+#    )
+#
+#    # Add libsecp256k1 as an external project
+#    set(EM_PATH /home/alexey/emsdk/upstream/emscripten)
+#    ExternalProject_Add(
+#            libsecp256k1
+#            GIT_REPOSITORY https://github.com/bitcoin-core/secp256k1.git
+#            GIT_TAG master  # or a specific commit/tag
+#            PREFIX ${CMAKE_BINARY_DIR}/libsecp256k1
+#            BUILD_IN_SOURCE 1  # Build in the source directory
+#            UPDATE_COMMAND ./autogen.sh
+#            CONFIGURE_COMMAND ${EM_PATH}/emconfigure ./configure --enable-module-recovery --disable-shared --prefix=${CMAKE_BINARY_DIR}/libsecp256k1-wasm
+#            BUILD_COMMAND ${EM_PATH}/emmake make
+#            INSTALL_COMMAND make install
+#            LOG_DOWNLOAD ON
+#            LOG_BUILD ON
+#            LOG_INSTALL ON
+#    )
 
     add_subdirectory(wasm)
 endif()
