@@ -1,4 +1,4 @@
-# pastel-light
+# pastel-lite
 
 ## Build Setup
 
