@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Test</title>
+    <script type="text/javascript" src="libpastel_wasm.js"></script>
+    <script>
+        Module.onRuntimeInitialized = function() {
+            document.getElementById("callFunction").addEventListener("click", function() {
+                let pastelInstance = new Module.Pastel();
+                console.log(pastelInstance)
+
+                let selectedMode = document.getElementById("networkMode").value;
+                console.log(selectedMode)
+                console.log(Module.NetworkMode)
+                let mode = Module.NetworkMode[selectedMode];
+                console.log(mode)
+
+                let address = pastelInstance.GetNewAddress(mode);
+
+                document.getElementById("result").innerText = address;
+
+                pastelInstance.delete();
+            });
+        };
+        // Module.getRandomValue = function() {
+        //     return Math.random();
+        // };
+    </script>
+</head>
+<body>
+<select id="networkMode">
+    <option value="Mainnet">Mainnet</option>
+    <option value="Testnet">Testnet</option>
+</select>
+<button id="callFunction">Get New Address</button>
+<div id="result"></div>
+</body>
+</html>
