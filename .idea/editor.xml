@@ -2,5 +2,15 @@
 <project version="4">
   <component name="BackendCodeEditorSettings">
     <option name="/Default/Housekeeping/GlobalSettingsUpgraded/IsUpgraded/@EntryValue" value="true" type="bool" />
+    <option name="/Default/CodeInspection/ExcludedFiles/FilesAndFoldersToSkip2/=7020124F_002D9FFC_002D4AC3_002D8F3D_002DAAB8E0240759_002Ff_003Astreams_002Eh_002Fl_003Alib_003Finclude_003Fstreams_002Eh/@EntryIndexedValue" value="ForceIncluded" type="string" />
+    <option name="/Default/CodeInspection/ExcludedFiles/FilesAndFoldersToSkip2/=7020124F_002D9FFC_002D4AC3_002D8F3D_002DAAB8E0240759_002Ff_003Astreams_002Eh_002Fl_003Alib_003Finclude_003Fstreams_002Eh/@EntryIndexRemoved" />
+    <option name="/Default/CodeInspection/ExcludedFiles/FilesAndFoldersToSkip2/=7020124F_002D9FFC_002D4AC3_002D8F3D_002DAAB8E0240759_002Ff_003Ahd_005Fwallet_002Eh_002Fl_003Alib_003Finclude_003Fhd_005Fwallet_002Eh/@EntryIndexedValue" value="ForceIncluded" type="string" />
+    <option name="/Default/CodeInspection/ExcludedFiles/FilesAndFoldersToSkip2/=7020124F_002D9FFC_002D4AC3_002D8F3D_002DAAB8E0240759_002Ff_003Ahd_005Fwallet_002Eh_002Fl_003Alib_003Finclude_003Fhd_005Fwallet_002Eh/@EntryIndexRemoved" />
+    <option name="/Default/CodeInspection/ExcludedFiles/FilesAndFoldersToSkip2/=7020124F_002D9FFC_002D4AC3_002D8F3D_002DAAB8E0240759_002Ff_003Ahd_005Fseed_002Eh_002Fl_003Alib_003Finclude_003Fhd_005Fseed_002Eh/@EntryIndexedValue" value="ForceIncluded" type="string" />
+    <option name="/Default/CodeInspection/ExcludedFiles/FilesAndFoldersToSkip2/=7020124F_002D9FFC_002D4AC3_002D8F3D_002DAAB8E0240759_002Ff_003Ahd_005Fseed_002Eh_002Fl_003Alib_003Finclude_003Fhd_005Fseed_002Eh/@EntryIndexRemoved" />
+    <option name="/Default/CodeInspection/ExcludedFiles/FilesAndFoldersToSkip2/=7020124F_002D9FFC_002D4AC3_002D8F3D_002DAAB8E0240759_002Ff_003Ahd_005Fmnemonic_002Eh_002Fl_003Alib_003Finclude_003Fhd_005Fmnemonic_002Eh/@EntryIndexedValue" value="ForceIncluded" type="string" />
+    <option name="/Default/CodeInspection/ExcludedFiles/FilesAndFoldersToSkip2/=7020124F_002D9FFC_002D4AC3_002D8F3D_002DAAB8E0240759_002Ff_003Ahd_005Fmnemonic_002Eh_002Fl_003Alib_003Finclude_003Fhd_005Fmnemonic_002Eh/@EntryIndexRemoved" />
+    <option name="/Default/CodeInspection/ExcludedFiles/FilesAndFoldersToSkip2/=7020124F_002D9FFC_002D4AC3_002D8F3D_002DAAB8E0240759_002Ff_003Ahd_005Fmnemonic_002Ecpp_002Fl_003Alib_003Fsrc_003Fhd_005Fmnemonic_002Ecpp/@EntryIndexedValue" value="ForceIncluded" type="string" />
+    <option name="/Default/CodeInspection/ExcludedFiles/FilesAndFoldersToSkip2/=7020124F_002D9FFC_002D4AC3_002D8F3D_002DAAB8E0240759_002Ff_003Ahd_005Fmnemonic_002Ecpp_002Fl_003Alib_003Fsrc_003Fhd_005Fmnemonic_002Ecpp/@EntryIndexRemoved" />
   </component>
 </project>

@@ -37,12 +37,17 @@ public:
     {
         return m_base58Prefixes[to_integral_type(type)];
     }
+
+    uint32_t bip44CoinType = 0;
+
+    [[nodiscard]] uint32_t BIP44CoinType() const noexcept { return bip44CoinType; }
 };
 
 class CMainnetParams : public CChainParams {
 public:
     CMainnetParams(){
         m_base58Prefixes[to_integral_type(Base58Type::PUBKEY_ADDRESS)] = {0x0c, 0xe3};
+        bip44CoinType = 4826951;    //0x0049A747; bip44CoinTypeHard => 0x8049A747
     }
 };
 

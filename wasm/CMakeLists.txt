@@ -1,8 +1,8 @@
 cmake_minimum_required(VERSION 3.20)
 
-#message("libsodium_INCLUDE_DIR: ${libsodium_INCLUDE_DIR}")
-#message("libsecp256k1_SOURCE_DIR: ${libsecp256k1_SOURCE_DIR}")
-#message("openssl_wasm_DIR: ${CMAKE_SOURCE_DIR}/third_party/openssl-wasm/precompiled")
+message("libsodium_INCLUDE_DIR: ${libsodium_INCLUDE_DIR}")
+message("libsecp256k1_SOURCE_DIR: ${libsecp256k1_SOURCE_DIR}")
+message("openssl_wasm_DIR: ${CMAKE_SOURCE_DIR}/third_party/openssl-wasm/precompiled")
 
 # Create a wasm module called 'libpastel_wasm'
 file(GLOB_RECURSE LIBPASTEL_SOURCES "../lib/src/*.cpp")

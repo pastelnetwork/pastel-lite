@@ -2,6 +2,17 @@
 
 ## Build Setup
 
+### 0. Clone the repository
+``` bash
+git clone git@github.com:pastelnetwork/pastel-lite.git
+cd pastel-lite
+```
+
+#### Get submodules
+``` bash
+git submodule update --init --recursive
+```
+
 ### 1. Install `cmake`, if not already installed
 #### Linux
 ``` bash
@@ -85,7 +96,7 @@ Currently they are:
 * `libsodium`
 * `OpenSLL`
 
-### 6. Build native library `libpastel` and test tool `pastel_light` 
+### 6. Build native library `libpastel` and test tool `pastel_lite` 
 ``` bash
 mkdir build-native-debug
 cd build-native-debug
@@ -98,8 +109,6 @@ cmake --build .
 ``` bash
 mkdir build-wasm-debug
 cd build-wasm-debug
-emcmake cmake .. -DCMAKE_BUILD_TYPE=Debug -DCMAKE_TOOLCHAIN_FILE=<path-to-vcpkg>/scripts/buildsystems/vcpkg.cmake
+emcmake cmake .. -DCMAKE_BUILD_TYPE=Debug
 emmake cmake --build .
 ```
-> Replace `<path-to-vcpkg>` with the path from step 2.
-

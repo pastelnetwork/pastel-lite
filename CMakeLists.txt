@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(pastel_light VERSION 0.1 DESCRIPTION "Light Version of Pastel Node" LANGUAGES CXX)
+project(pastel_lite VERSION 0.1 DESCRIPTION "Lite Version of Pastel Node" LANGUAGES CXX)
 
 # Set the C++ standard for the project
 set(CMAKE_CXX_STANDARD 20)

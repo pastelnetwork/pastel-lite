@@ -6,6 +6,7 @@
 //#include <support/allocators/secure.h>
 #include <sodium.h>
 #include "ecc_context.h"
+#include "types.h"
 
 using namespace std;
 
@@ -19,8 +20,7 @@ secp256k1_context* ECCContext::getSignContext()
         if (!ctx_sign)
             throw runtime_error("ECCContext::getSignContext() : secp256k1_context_create failed");
         // Pass in a random blinding seed to the secp256k1 context.
-//        vector<unsigned char, secure_allocator<unsigned char>> vseed(32);
-        vector<unsigned char> vseed(32);
+        SecureVector vseed(32);
         randombytes_buf(vseed.data(), 32);
         if (secp256k1_context_randomize(ctx_sign.get(), vseed.data()) != 1)
 			throw runtime_error("ECCContext::getSignContext() : secp256k1_context_randomize failed");

@@ -5,8 +5,6 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or https://www.opensource.org/licenses/mit-license.php.
 
-#include <support/allocators/zeroafterfree.h>
-
 #include <ios>
 #include <limits>
 #include <map>
@@ -18,55 +16,10 @@
 #include <string>
 #include <utility>
 
-#include <utils/vector_types.h>
-#include <utils/serialize.h>
-
-template<typename Stream>
-class OverrideStream
-{
-    Stream* stream;
-
-    const int nType;
-    const int nVersion;
-
-public:
-    OverrideStream(Stream* stream_, int nType_, int nVersion_) : stream(stream_), nType(nType_), nVersion(nVersion_) {}
-
-    template<typename T>
-    OverrideStream<Stream>& operator<<(const T& obj)
-    {
-        // Serialize to this stream
-        ::Serialize(*this, obj);
-        return (*this);
-    }
-
-    template<typename T>
-    OverrideStream<Stream>& operator>>(T&& obj)
-    {
-        // Unserialize from this stream
-        ::Unserialize(*this, obj);
-        return (*this);
-    }
-
-    void write(const char* pch, size_t nSize)
-    {
-        stream->write(pch, nSize);
-    }
-
-    void read(char* pch, size_t nSize)
-    {
-        stream->read(pch, nSize);
-    }
-
-    int GetVersion() const noexcept { return nVersion; }
-    int GetType() const noexcept { return nType; }
-};
-
-template<typename S>
-OverrideStream<S> WithVersion(S* s, int nVersion)
-{
-    return OverrideStream<S>(s, s->GetType(), nVersion);
-}
+#include "support/allocators/zeroafterfree.h"
+#include "vector_types.h"
+#include "serialize.h"
+#include "types.h"
 
 /** Double ended buffer combining vector and stream-like interfaces.
  *
@@ -139,43 +92,44 @@ public:
 		return (*this);
 	}
 
-    CBaseDataStream(const_iterator pbegin, const_iterator pend, const int nType, const int nVersion) : 
+    CBaseDataStream(const_iterator pbegin, const_iterator pend, const int nType, const int nVersion) :
         vch(pbegin, pend)
     {
         Init(nType, nVersion);
     }
 
 #if !defined(_MSC_VER) || _MSC_VER >= 1300
-    CBaseDataStream(const char* pbegin, const char* pend, const int nType, const int nVersion) : 
+    CBaseDataStream(const char* pbegin, const char* pend, const int nType, const int nVersion) :
         vch(pbegin, pend)
     {
         Init(nType, nVersion);
     }
 #endif
 
-    CBaseDataStream(vector_type&& vchIn, const int nType, const int nVersion) : 
+    CBaseDataStream(vector_type&& vchIn, const int nType, const int nVersion) :
         vch(move(vchIn))
     {
         Init(nType, nVersion);
     }
 
-    CBaseDataStream(const vector_type& vchIn, const int nType, const int nVersion) : 
+    CBaseDataStream(const vector_type& vchIn, const int nType, const int nVersion) :
         vch(vchIn.cbegin(), vchIn.cend())
     {
         Init(nType, nVersion);
     }
 
-    CBaseDataStream(const std::vector<char>& vchIn, const int nType, const int nVersion) : 
+    CBaseDataStream(const std::vector<char>& vchIn, const int nType, const int nVersion) :
         vch(vchIn.cbegin(), vchIn.cend())
     {
         Init(nType, nVersion);
     }
 
-    CBaseDataStream(const v_uint8& vchIn, const int nType, const int nVersion) : 
-        vch(vchIn.cbegin(), vchIn.cend())
-    {
-        Init(nType, nVersion);
-    }
+    //commented out because v_uint8 is the same as CKeyingMaterial right now
+//    CBaseDataStream(const v_uint8& vchIn, const int nType, const int nVersion) :
+//        vch(vchIn.cbegin(), vchIn.cend())
+//    {
+//        Init(nType, nVersion);
+//    }
 
     template <typename... Args>
     CBaseDataStream(const int nType, const int nVersion, Args&&... args)
@@ -333,7 +287,7 @@ public:
 
     void read(char* pch, const size_t nSize)
     {
-        if (nSize == 0) 
+        if (nSize == 0)
             return;
 
         if (!pch)
@@ -356,7 +310,7 @@ public:
 
     void read(CBaseDataStream &os, const size_t nSize)
     {
-        if (nSize == 0) 
+        if (nSize == 0)
             return;
 
         // Read from the beginning of the buffer
@@ -465,9 +419,9 @@ public:
         CBaseDataStream(vchIn, nType, nVersion)
     {}
 
-    CDataStream(const v_uint8& vchIn, const int nType, const int nVersion) :
-        CBaseDataStream(vchIn, nType, nVersion)
-    {}
+//    CDataStream(const v_uint8& vchIn, const int nType, const int nVersion) :
+//        CBaseDataStream(vchIn, nType, nVersion)
+//    {}
 
     template <typename... Args>
     CDataStream(const int nType, const int nVersion, Args&&... args) :
@@ -491,281 +445,18 @@ public:
     }
 };
 
-/** Non-refcounted RAII wrapper for FILE*
- *
- * Will automatically close the file when it goes out of scope if not null.
- * If you're returning the file pointer, return file.release().
- * If you need to close the file early, use file.fclose() instead of fclose(file).
- */
-class CAutoFile
+class CSecureDataStream : public CBaseDataStream<CKeyingMaterial>
 {
-private:
-    // Disallow copies
-    CAutoFile(const CAutoFile&) = delete;
-    CAutoFile& operator=(const CAutoFile&) = delete;
-
-    const int m_nType;
-    const int m_nVersion;
-
-    FILE* file;	
-
 public:
-    CAutoFile(FILE* filenew, const int nType, const int nVersion) : 
-        m_nType(nType), m_nVersion(nVersion)
-    {
-        file = filenew;
-    }
+    explicit CSecureDataStream(int nTypeIn, int nVersionIn) :
+        CBaseDataStream(nTypeIn, nVersionIn)
+    {}
 
-    ~CAutoFile()
-    {
-        fclose();
-    }
+    CSecureDataStream(const_iterator pbegin, const_iterator pend, int nTypeIn, int nVersionIn) :
+        CBaseDataStream(pbegin, pend, nTypeIn, nVersionIn)
+    {}
 
-    void fclose()
-    {
-        if (file) {
-            ::fclose(file);
-            file = nullptr;
-        }
-    }
-
-    /** Get wrapped FILE* with transfer of ownership.
-     * @note This will invalidate the CAutoFile object, and makes it the responsibility of the caller
-     * of this function to clean up the returned FILE*.
-     */
-    FILE* release()             { FILE* ret = file; file = nullptr; return ret; }
-
-    /** Get wrapped FILE* without transfer of ownership.
-     * @note Ownership of the FILE* will remain with this class. Use this only if the scope of the
-     * CAutoFile outlives use of the passed pointer.
-     */
-    FILE* Get() const           { return file; }
-
-    /** Return true if the wrapped FILE* is nullptr, false otherwise.
-     */
-    bool IsNull() const         { return (file == nullptr); }
-
-    //
-    // Stream subset
-    //
-    int GetType() const noexcept    { return m_nType; }
-    int GetVersion() const noexcept { return m_nVersion; }
-
-    void read(char* pch, size_t nSize)
-    {
-        if (!file)
-            throw std::ios_base::failure("CAutoFile::read: file handle is NULL");
-        if (fread(pch, 1, nSize, file) != nSize)
-            throw std::ios_base::failure(feof(file) ? "CAutoFile::read: end of file" : "CAutoFile::read: fread failed");
-    }
-
-    void ignore(const size_t nSizeToSkip)
-    {
-        if (!file)
-            throw std::ios_base::failure("CAutoFile::ignore: file handle is NULL");
-        unsigned char data[4096];
-        size_t nSize = nSizeToSkip;
-        while (nSize > 0)
-        {
-            size_t nNow = std::min<size_t>(nSize, sizeof(data));
-            if (fread(data, 1, nNow, file) != nNow)
-                throw std::ios_base::failure(feof(file) ? "CAutoFile::ignore: end of file" : "CAutoFile::read: fread failed");
-            nSize -= nNow;
-        }
-    }
-
-    void write(const char* pch, size_t nSize)
-    {
-        if (!file)
-            throw std::ios_base::failure("CAutoFile::write: file handle is NULL");
-        if (fwrite(pch, 1, nSize, file) != nSize)
-            throw std::ios_base::failure("CAutoFile::write: write failed");
-    }
-
-    template<typename T>
-    CAutoFile& operator<<(const T& obj)
-    {
-        // Serialize to this stream
-        if (!file)
-            throw std::ios_base::failure("CAutoFile::operator<<: file handle is NULL");
-        ::Serialize(*this, obj);
-        return (*this);
-    }
-
-    template<typename T>
-    CAutoFile& operator>>(T& obj)
-    {
-        // Unserialize from this stream
-        if (!file)
-            throw std::ios_base::failure("CAutoFile::operator>>: file handle is NULL");
-        ::Unserialize(*this, obj);
-        return (*this);
-    }
+    CSecureDataStream(const vector_type& vchIn, int nTypeIn, int nVersionIn) :
+        CBaseDataStream(vchIn, nTypeIn, nVersionIn)
+    {}
 };
-
-/** Non-refcounted RAII wrapper around a FILE* that implements a ring buffer to
- *  deserialize from. It guarantees the ability to rewind a given number of bytes.
- *
- *  Will automatically close the file when it goes out of scope if not null.
- *  If you need to close the file early, use file.fclose() instead of fclose(file).
- */
-class CBufferedFile
-{
-private:
-    // Disallow copies
-    CBufferedFile(const CBufferedFile&) = delete;
-    CBufferedFile& operator=(const CBufferedFile&) = delete;
-
-    const int m_nType;
-    const int m_nVersion;
-
-    FILE *src;            // source file
-    uint64_t nSrcPos;     // how many bytes have been read from source
-    uint64_t nReadPos;    // how many bytes have been read from this
-    uint64_t nReadLimit;  // up to which position we're allowed to read
-    uint64_t nRewind;     // how many bytes we guarantee to rewind
-    std::vector<char> vchBuf; // the buffer
-
-protected:
-    // read data from the source to fill the buffer
-    bool Fill()
-    {
-        const uint64_t nPos = nSrcPos % vchBuf.size();
-        uint64_t readNow = vchBuf.size() - nPos;
-        const uint64_t nAvailable = vchBuf.size() - (nSrcPos - nReadPos) - nRewind;
-        if (nAvailable < readNow)
-            readNow = nAvailable;
-        if (readNow == 0)
-            return false;
-        const size_t read = fread((void*)&vchBuf[nPos], 1, readNow, src);
-        if (read == 0)
-            throw std::ios_base::failure(feof(src) ? "CBufferedFile::Fill: end of file" : "CBufferedFile::Fill: fread failed");
-        nSrcPos += read;
-        return true;
-    }
-
-public:
-    CBufferedFile(FILE *fileIn, uint64_t nBufSize, uint64_t nRewindIn, const int nType, const int nVersion) :
-        m_nType(nType), 
-        m_nVersion(nVersion), 
-        nSrcPos(0), 
-        nReadPos(0), 
-        nReadLimit((uint64_t)(-1)), 
-        nRewind(nRewindIn), 
-        vchBuf(nBufSize, 0)
-    {
-        src = fileIn;
-    }
-
-    ~CBufferedFile()
-    {
-        fclose();
-    }
-
-    int GetVersion() const noexcept { return m_nVersion; }
-    int GetType() const noexcept { return m_nType; }
-
-    void fclose()
-    {
-        if (src) {
-            ::fclose(src);
-            src = nullptr;
-        }
-    }
-
-    // check whether we're at the end of the source file
-    bool eof() const {
-        return nReadPos == nSrcPos && feof(src);
-    }
-
-    // read a number of bytes
-    void read(char *pch, const size_t nSizeToRead)
-    {
-        if (nSizeToRead == 0)
-            return;
-        size_t nSize = nSizeToRead;
-        if (!pch)
-            throw std::ios_base::failure("CBufferedFile::read(): cannot read from null pointer");
-        if (nSize + nReadPos > nReadLimit)
-            throw std::ios_base::failure("Read attempted past buffer limit");
-        if (nSize + nRewind > vchBuf.size())
-            throw std::ios_base::failure("Read larger than buffer size");
-        while (nSize > 0)
-        {
-            if (nReadPos == nSrcPos)
-                Fill();
-            const uint64_t pos = nReadPos % vchBuf.size();
-            size_t nNow = nSize;
-            if (nNow + pos > vchBuf.size())
-                nNow = vchBuf.size() - pos;
-            if (nNow + nReadPos > nSrcPos)
-                nNow = nSrcPos - nReadPos;
-            memcpy(pch, &vchBuf[pos], nNow);
-            nReadPos += nNow;
-            pch += nNow;
-            nSize -= nNow;
-        }
-    }
-    void write(const char* pch, const size_t nSize) {} // stub
-
-    // return the current reading position
-    uint64_t GetPos() const noexcept { return nReadPos; }
-
-    // rewind to a given reading position
-    bool SetPos(const uint64_t nPos) noexcept
-    {
-        nReadPos = nPos;
-        if (nReadPos + nRewind < nSrcPos)
-        {
-            nReadPos = nSrcPos - nRewind;
-            return false;
-        }
-        if (nReadPos > nSrcPos)
-        {
-            nReadPos = nSrcPos;
-            return false;
-        }
-        return true;
-    }
-
-    bool Seek(const uint64_t nPos)
-    {
-        long nLongPos = static_cast<long>(nPos);
-        if (nPos != (uint64_t)nLongPos)
-            return false;
-        if (fseek(src, nLongPos, SEEK_SET))
-            return false;
-        nLongPos = ftell(src);
-        nSrcPos = nLongPos;
-        nReadPos = nLongPos;
-        return true;
-    }
-
-    // prevent reading beyond a certain position
-    // no argument removes the limit
-    bool SetLimit(uint64_t nPos = (uint64_t)(-1)) {
-        if (nPos < nReadPos)
-            return false;
-        nReadLimit = nPos;
-        return true;
-    }
-
-    template<typename T>
-    CBufferedFile& operator>>(T& obj) {
-        // Unserialize from this stream
-        ::Unserialize(*this, obj);
-        return (*this);
-    }
-
-    // search for a given byte in the stream, and remain positioned on it
-    void FindByte(char ch) {
-        while (true) {
-            if (nReadPos == nSrcPos)
-                Fill();
-            if (vchBuf[nReadPos % vchBuf.size()] == ch)
-                break;
-            nReadPos++;
-        }
-    }
-};
-

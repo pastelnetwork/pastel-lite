@@ -1,8 +1,32 @@
-//
-// Created by alexey on 3/26/2024.
-//
+#pragma once
+// Copyright (c) 2018-2024 The Pastel core developers
+// Distributed under the MIT software license, see the accompanying
+// file COPYING or https://www.opensource.org/licenses/mit-license.php.
 
-#ifndef HD_SEED_H
-#define HD_SEED_H
+#include "types.h"
+#include "uint256.h"
 
-#endif //HD_SEED_H
+typedef CKeyingMaterial RawHDSeed;
+typedef uint256 SeedFingerprint;
+
+class HDSeed {
+protected:
+    RawHDSeed seed;
+
+    HDSeed() = default;
+public:
+    explicit HDSeed(RawHDSeed seedIn) : seed(std::move(seedIn)) {}
+
+    [[nodiscard]] uint256 Fingerprint() const;
+    [[nodiscard]] RawHDSeed RawSeed() const { return seed; }
+
+    friend bool operator==(const HDSeed& a, const HDSeed& b)
+    {
+        return a.seed == b.seed;
+    }
+
+    friend bool operator!=(const HDSeed& a, const HDSeed& b)
+    {
+        return !(a == b);
+    }
+};

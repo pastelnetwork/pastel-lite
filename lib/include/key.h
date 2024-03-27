@@ -99,41 +99,41 @@ public:
     }
 
     //! Simple read-only vector-like interface.
-    unsigned int size() const noexcept { return (fValid ? static_cast<unsigned int>(keydata.size()) : 0); }
-    const unsigned char* begin() const noexcept { return keydata.data(); }
-    const unsigned char* end() const noexcept { return keydata.data() + size(); }
-    const unsigned char* cbegin() const noexcept { return keydata.data(); }
-    const unsigned char* cend() const noexcept { return keydata.data() + size(); }
+    [[nodiscard]] unsigned int size() const noexcept { return (fValid ? static_cast<unsigned int>(keydata.size()) : 0); }
+    [[nodiscard]] const unsigned char* begin() const noexcept { return keydata.data(); }
+    [[nodiscard]] const unsigned char* end() const noexcept { return keydata.data() + size(); }
+    [[nodiscard]] const unsigned char* cbegin() const noexcept { return keydata.data(); }
+    [[nodiscard]] const unsigned char* cend() const noexcept { return keydata.data() + size(); }
 
     //! Check whether this private key is valid.
-    bool IsValid() const noexcept { return fValid; }
+    [[nodiscard]] bool IsValid() const noexcept { return fValid; }
 
     //! Check whether the public key corresponding to this private key is (to be) compressed.
-    bool IsCompressed() const noexcept { return fCompressed; }
+    [[nodiscard]] bool IsCompressed() const noexcept { return fCompressed; }
 
     //! Initialize from a CPrivKey (serialized OpenSSL private key data).
-    bool SetPrivKey(const CPrivKey& vchPrivKey, const bool fCompressed);
+    bool SetPrivKey(const CPrivKey& vchPrivKey, bool fCompressed);
 
     //! Generate a new private key using a cryptographic PRNG.
-    void MakeNewKey(const bool fCompressed);
+    void MakeNewKey(bool fCompressed);
 
     /**
      * Convert the private key to a CPrivKey (serialized OpenSSL private key data).
      * This is expensive. 
      */
-    CPrivKey GetPrivKey() const;
+    [[nodiscard]] CPrivKey GetPrivKey() const;
 
     /**
      * Compute the public key from a private key.
      * This is expensive.
      */
-    CPubKey GetPubKey() const;
+    [[nodiscard]] CPubKey GetPubKey() const;
 
     /**
      * Create a DER-serialized signature.
      * The test_case parameter tweaks the deterministic nonce.
      */
-    bool Sign(const uint256& hash, v_uint8& vchSig, const uint32_t test_case = 0) const;
+    bool Sign(const uint256& hash, v_uint8& vchSig, uint32_t test_case = 0) const;
 
     /**
      * Create a compact signature (65 bytes), which allows reconstructing the used public key.
@@ -145,19 +145,19 @@ public:
     bool SignCompact(const uint256& hash, v_uint8& vchSig) const;
 
     //! Derive BIP32 child key.
-    bool Derive(CKey& keyChild, ChainCode &ccChild, const unsigned int nChild, const ChainCode& cc) const;
+    bool Derive(CKey& keyChild, ChainCode &ccChild, unsigned int nChild, const ChainCode& cc) const;
 
     /**
      * Verify thoroughly whether a private key and a public key match.
      * This is done using a different mechanism than just regenerating it.
      */
-    bool VerifyPubKey(const CPubKey& vchPubKey) const;
+    [[nodiscard]] bool VerifyPubKey(const CPubKey& vchPubKey) const;
 
     //! Load private key and check that public key matches.
-    bool Load(CPrivKey& privkey, CPubKey& vchPubKey, const bool fSkipCheck = false);
+    bool Load(CPrivKey& privkey, CPubKey& vchPubKey, bool fSkipCheck = false);
 
-    //! Check whether an element of a signature (r or s) is valid.
-    static bool CheckSignatureElement(const unsigned char* vch, const int len, const bool half);
+//    //! Check whether an element of a signature (r or s) is valid.
+//    static bool CheckSignatureElement(const unsigned char* vch, const int len, const bool half);
 };
 
 struct CExtKey {
@@ -166,6 +166,8 @@ struct CExtKey {
     unsigned int nChild;
     ChainCode chaincode;
     CKey key;
+
+    static std::optional<CExtKey> Master(const unsigned char* seed, unsigned int nSeedLen);
 
     friend bool operator==(const CExtKey& a, const CExtKey& b)
     {
@@ -178,9 +180,10 @@ struct CExtKey {
 
     void Encode(unsigned char code[BIP32_EXTKEY_SIZE]) const;
     void Decode(const unsigned char code[BIP32_EXTKEY_SIZE]);
-    bool Derive(CExtKey& out, unsigned int nChild) const;
-    CExtPubKey Neuter() const;
-    void SetMaster(const unsigned char* seed, unsigned int nSeedLen);
+
+    [[nodiscard]] std::optional<CExtKey> Derive(unsigned int numChild) const;
+    [[nodiscard]] CExtPubKey Neuter() const;
+
     template <typename Stream>
     void Serialize(Stream& s) const
     {
@@ -204,4 +207,4 @@ struct CExtKey {
 };
 
 /** Check that required EC support is available at runtime. */
-bool ECC_InitSanityCheck(void);
+bool ECC_InitSanityCheck();

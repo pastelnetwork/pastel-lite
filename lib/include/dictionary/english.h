@@ -1,8 +1,13 @@
-//
-// Created by alexey on 3/27/2024.
-//
+#pragma once
+// Copyright (c) 2018-2024 The Pastel core developers
+// Distributed under the MIT software license, see the accompanying
+// file COPYING or https://www.opensource.org/licenses/mit-license.php.
 
-#ifndef PASTEL_LITE_ENGLISH_H
-#define PASTEL_LITE_ENGLISH_H
+#include <string>
 
-#endif //PASTEL_LITE_ENGLISH_H
+struct WordList_english {
+    static constexpr const char* words[] = {
+            "abandon", "ability", "able"
+    };
+    static constexpr size_t size = sizeof(words) / sizeof(words[0]);
+};
