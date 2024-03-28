@@ -21,6 +21,8 @@ private:
     CKeyingMaterial vchIV;
     bool fKeySet;
 
+    int BytesToKeySHA512AES(const std::vector<unsigned char>& chSalt, const SecureString& strKeyData, int count, unsigned char *key,unsigned char *iv) const;
+
 public:
     bool SetKeyFromPassphrase(const SecureString &strKeyData, const v_uint8& chSalt, unsigned int nRounds, unsigned int nDerivationMethod);
     bool Encrypt(const CKeyingMaterial& vchPlaintext, v_uint8& vchCiphertext) const;
@@ -29,16 +31,16 @@ public:
 
     void CleanKey()
     {
-//        memory_cleanse(vchKey.data(), vchKey.size());
-//        memory_cleanse(vchIV.data(), vchIV.size());
-//        fKeySet = false;
+        memory_cleanse(vchKey.data(), vchKey.size());
+        memory_cleanse(vchIV.data(), vchIV.size());
+        fKeySet = false;
     }
 
     CCrypter()
     {
-//        fKeySet = false;
-//        vchKey.resize(WALLET_CRYPTO_KEY_SIZE);
-//        vchIV.resize(WALLET_CRYPTO_IV_SIZE);
+        fKeySet = false;
+        vchKey.resize(WALLET_CRYPTO_KEY_SIZE);
+        vchIV.resize(WALLET_CRYPTO_IV_SIZE);
     }
 
     ~CCrypter()

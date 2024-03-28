@@ -16,5 +16,5 @@ class CHDWallet
 public:
     bool SetMasterKey(const SecureString& strPassphrase);
     bool SetEncryptedMnemonicSeed(const MnemonicSeed& seed);
-    [[nodiscard]] std::optional<MnemonicSeed> GetMnemonicSeed() const;
+    [[nodiscard]] std::optional<MnemonicSeed> GetDecryptedMnemonicSeed() const;
 };

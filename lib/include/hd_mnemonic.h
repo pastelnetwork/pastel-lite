@@ -8,6 +8,7 @@
 #include "hd_seed.h"
 #include "version.h"
 #include "bip39.h"
+#include "crypter.h"
 
 class MnemonicSeed: public HDSeed {
     Language language;
@@ -25,16 +26,7 @@ class MnemonicSeed: public HDSeed {
     MnemonicSeed() = default;
 
 public:
-    static std::optional<MnemonicSeed> FromPhrase(const Language languageIn, SecureString mnemonicIn) {
-        MnemonicSeed seed;
-        seed.language = languageIn;
-        seed.mnemonic = std::move(mnemonicIn);
-        if (seed.SetSeedFromMnemonic()) {
-            return seed;
-        } else {
-            return std::nullopt;
-        }
-    }
+    static std::optional<MnemonicSeed> FromPhrase(const Language languageIn, SecureString mnemonicIn);
 
     /**
      * Randomly generate a new mnemonic seed. A SLIP-44 coin type is required to make it possible
@@ -42,43 +34,7 @@ public:
      * numbers 0x7FFFFFFF and 0x00 respectively.
      */
     static MnemonicSeed Random(uint32_t bip44CoinType, Language language = English, size_t entropyLen = 32);
-
-    static std::optional<MnemonicSeed>
-    FromEntropy(const RawHDSeed &entropy, uint32_t bip44CoinType, Language language = English);
-
-    [[nodiscard]] CKeyingMaterial EncryptMnemonicSeed() const {
-        CSecureDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
-        ss << seed;
-        CKeyingMaterial vchSecret(ss.begin(), ss.end());
-        return vchSecret;
-    }
-
-    static std::string LanguageName(const Language language) {
-        switch (language) {
-            case English:
-                return "English";
-            case SimplifiedChinese:
-                return "Simplified Chinese";
-            case TraditionalChinese:
-                return "Traditional Chinese";
-            case Czech:
-                return "Czech";
-            case French:
-                return "French";
-            case Italian:
-                return "Italian";
-            case Japanese:
-                return "Japanese";
-            case Korean:
-                return "Korean";
-            case Portuguese:
-                return "Portuguese";
-            case Spanish:
-                return "Spanish";
-            default:
-                return "INVALID";
-        }
-    }
+    static std::optional<MnemonicSeed> FromEntropy(const RawHDSeed &entropy, uint32_t bip44CoinType, Language language = English);
 
     ADD_SERIALIZE_METHODS;
 
@@ -101,10 +57,17 @@ public:
         }
     }
 
-    template<typename Stream>
-    static MnemonicSeed Read(Stream &stream) {
+    static CKeyingMaterial Write(const MnemonicSeed& seed) {
+        CSecureDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
+        ss << seed;
+        CKeyingMaterial vchSeed(ss.begin(), ss.end());
+        return vchSeed;
+    }
+
+    static MnemonicSeed Read(const CKeyingMaterial& vchSecret) {
+        CSecureDataStream ss(vchSecret, SER_NETWORK, PROTOCOL_VERSION);
         MnemonicSeed seed;
-        stream >> seed;
+        ss >> seed;
         return seed;
     }
 

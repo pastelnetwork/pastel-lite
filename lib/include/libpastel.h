@@ -20,7 +20,7 @@ public:
     Pastel();
     std::string GetNewAddress(NetworkMode mode);
 
-    void CreateNewWallet(NetworkMode mode, const SecureString& password);
+    std::string CreateNewWallet(NetworkMode mode, const SecureString& password);
 //    void ImportWalletFromMnemonic(const std::string& mnemonic, NetworkMode mode, SecureString password);
 //
 //    void ImportWallet(const std::vector<unsigned char>& data, SecureString password);

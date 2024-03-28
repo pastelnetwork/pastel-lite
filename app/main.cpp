@@ -6,7 +6,8 @@ int main() {
     string address = lib.GetNewAddress(NetworkMode::MAINNET);
     std::cout << "New Address: " << address << std::endl;
 
-    lib.CreateNewWallet(NetworkMode::MAINNET, "password");
+    auto mnem = lib.CreateNewWallet(NetworkMode::MAINNET, "password");
+    std::cout << "Mnemonic: " << mnem << std::endl;
     return 0;
 }
 

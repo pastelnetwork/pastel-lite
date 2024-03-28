@@ -7,6 +7,17 @@
 #include "hd_mnemonic.h"
 #include "hd_keys.h"
 
+std::optional<MnemonicSeed> MnemonicSeed::FromPhrase(const Language languageIn, SecureString mnemonicIn) {
+    MnemonicSeed seed;
+    seed.language = languageIn;
+    seed.mnemonic = std::move(mnemonicIn);
+    if (seed.SetSeedFromMnemonic()) {
+        return seed;
+    } else {
+        return std::nullopt;
+    }
+}
+
 std::optional<MnemonicSeed> MnemonicSeed::FromEntropy(const RawHDSeed& entropy, uint32_t bip44CoinType, Language language) {
     auto phrase = BIP39::entropy_to_phrase(entropy, language);
     SecureString mnemonic(phrase);

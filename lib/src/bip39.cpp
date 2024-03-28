@@ -19,6 +19,9 @@ std::string BIP39::entropy_to_phrase(const std::vector<unsigned char>& entropy, 
     }
 
     const std::vector<std::string>& wordlist = BIP39::get_wordlist(language);
+    if (wordlist.size() != 2048) {
+        throw std::invalid_argument("Invalid wordlist size.");
+    }
 
     size_t entropy_bits = entropy.size() * 8;
     size_t checksum_bits = entropy_bits / 32;

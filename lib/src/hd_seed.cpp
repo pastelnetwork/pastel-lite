@@ -17,19 +17,3 @@ uint256 HDSeed::Fingerprint() const
     h << seed;
     return h.GetHash();
 }
-
-static bool DecryptHDSeed(
-    const CKeyingMaterial& vMasterKey,
-    const v_uint8& vchCryptedSecret,
-    const uint256& seedFp,
-    HDSeed& seed)
-{
-    CKeyingMaterial vchSecret;
-
-    // Use seed's fingerprint as IV
-    if(!CCrypter::DecryptSecret(vMasterKey, vchCryptedSecret, seedFp, vchSecret))
-        return false;
-
-    seed = HDSeed(vchSecret);
-    return seed.Fingerprint() == seedFp;
-}

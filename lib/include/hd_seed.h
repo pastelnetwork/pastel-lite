@@ -7,7 +7,6 @@
 #include "uint256.h"
 
 typedef CKeyingMaterial RawHDSeed;
-typedef uint256 SeedFingerprint;
 
 class HDSeed {
 protected:

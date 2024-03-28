@@ -48,16 +48,23 @@ string Pastel::GetNewAddress(const NetworkMode mode)
     const CChainParams *network = m_Networks[mode];
     return encodePublicKey(keyID, network);
 }
-void Pastel::CreateNewWallet(NetworkMode mode, const SecureString& password)
+std::string Pastel::CreateNewWallet(NetworkMode mode, const SecureString& password)
 {
     // Generate new random master key and encrypt it using key derived from password
     if (!m_HDWallet.SetMasterKey(password)) {
         throw std::runtime_error("Failed to set master key");
     }
+
     // Generate new random mnemonic seed and encrypt it using master key
-//    auto bip44CoinType = m_Networks[mode]->BIP44CoinType();
-//    MnemonicSeed seed = MnemonicSeed::Random(bip44CoinType, Language::English);
-//    m_HDWallet.SetEncryptedMnemonicSeed(seed);
+    auto bip44CoinType = m_Networks[mode]->BIP44CoinType();
+    MnemonicSeed seed = MnemonicSeed::Random(bip44CoinType, Language::English);
+    m_HDWallet.SetEncryptedMnemonicSeed(seed);
+
+    auto decSeed = m_HDWallet.GetDecryptedMnemonicSeed();
+    if (!decSeed.has_value()) {
+        throw std::runtime_error("Failed to get decrypted mnemonic seed");
+    }
+    return seed.GetMnemonic();
 }
 //void Pastel::ImportWalletFromMnemonic(const std::string& mnemonic, NetworkMode mode, SecureString password)
 //{
