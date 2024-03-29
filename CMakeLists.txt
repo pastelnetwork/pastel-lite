@@ -24,9 +24,6 @@ if (NOT EMSCRIPTEN)
     # libsodium
     find_package(unofficial-sodium CONFIG REQUIRED)
 
-    # OpenSSL
-    find_package(OpenSSL REQUIRED)
-
     add_subdirectory(lib)
     add_subdirectory(app)
 else() # EMSCRIPTEN

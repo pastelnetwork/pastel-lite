@@ -8,6 +8,8 @@
 #include <stdint.h>
 #include <stdlib.h>
 
+#define SHA512_DIGEST_LENGTH    64
+
 /** A hasher class for SHA-512. */
 class CSHA512
 {

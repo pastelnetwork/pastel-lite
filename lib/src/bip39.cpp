@@ -4,9 +4,9 @@
 
 #include <stdexcept>
 #include <sstream>
-#include <openssl/sha.h>
-#include <openssl/evp.h>
+#include <sodium.h>
 
+#include "hash.h"
 #include "dictionary/english.h"
 
 #include "bip39.h"
@@ -28,7 +28,8 @@ std::string BIP39::entropy_to_phrase(const std::vector<unsigned char>& entropy, 
     size_t total_bits = entropy_bits + checksum_bits;
 
     unsigned char checksum[SHA256_DIGEST_LENGTH];
-    SHA256(entropy.data(), entropy.size(), checksum);
+    CHash256().Write((unsigned char*)entropy.data(), entropy.size()).Finalize(checksum);
+
     size_t checksum_int = checksum[0] >> (8 - checksum_bits);
 
     size_t entropy_int = 0;
@@ -56,16 +57,34 @@ std::string BIP39::entropy_to_phrase(const std::vector<unsigned char>& entropy, 
 // Converts a mnemonic phrase to a seed with an optional passphrase
 std::vector<unsigned char> BIP39::phrase_to_seed(const std::string& phrase, const std::string& passphrase)
 {
-    const std::string salt = "mnemonic" + passphrase;
+    std::string salt_prefix = "mnemonic";
+    std::string salt_str = salt_prefix + passphrase;
+
+    // Truncate or pad the salt string to the size of crypto_pwhash_SALTBYTES
+    salt_str.resize(crypto_pwhash_SALTBYTES);
+
+    std::vector<unsigned char> salt(crypto_pwhash_SALTBYTES);
+    std::copy(salt_str.begin(), salt_str.end(), salt.begin());
+
     std::vector<unsigned char> seed(64); // 512 bits
 
-    // Use PBKDF2 with HMAC-SHA512
-    if (PKCS5_PBKDF2_HMAC(
-            phrase.c_str(), phrase.length(),
-            reinterpret_cast<const unsigned char*>(salt.c_str()), salt.length(),
-            2048, // Recommended iteration count for BIP39
-            EVP_sha512(),
-            seed.size(), seed.data()) != 1) {
+#ifdef __EMSCRIPTEN__
+    unsigned long long int ops_limit = crypto_pwhash_OPSLIMIT_INTERACTIVE;
+    size_t mem_limit = crypto_pwhash_MEMLIMIT_MIN;
+#else
+    unsigned long long int ops_limit = crypto_pwhash_OPSLIMIT_MODERATE;
+    size_t mem_limit = crypto_pwhash_MEMLIMIT_INTERACTIVE;
+#endif
+
+    // Use Argon2id from libsodium
+    if (crypto_pwhash(seed.data(),
+                      seed.size(),
+                      phrase.c_str(),
+                      phrase.length(),
+                      reinterpret_cast<const unsigned char*>(salt.data()),
+                      ops_limit,
+                      mem_limit,
+                      crypto_pwhash_ALG_DEFAULT) != 0) {
         throw std::runtime_error("Failed to derive seed from mnemonic phrase");
     }
 
@@ -113,7 +132,8 @@ bool BIP39::validate_phrase(const std::string& phrase, Language language) {
         }
 
         unsigned char checksum_expected[SHA256_DIGEST_LENGTH];
-        SHA256(entropy_bytes_vec.data(), entropy_bytes_vec.size(), checksum_expected);
+        CHash256().Write((unsigned char*)entropy_bytes_vec.data(), entropy_bytes_vec.size()).Finalize(checksum_expected);
+
         size_t checksum_expected_int = checksum_expected[0] >> (8 - checksum_bits);
 
         return checksum == checksum_expected_int;

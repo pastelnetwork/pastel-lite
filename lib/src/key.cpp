@@ -7,7 +7,6 @@
 #include <secp256k1_recovery.h>
 
 #include "key.h"
-//#include "arith_uint256.h
 #include "crypto/common.h"
 #include "crypto/hmac_sha512.h"
 #include "pubkey.h"

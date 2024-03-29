@@ -60,6 +60,7 @@ std::string Pastel::CreateNewWallet(NetworkMode mode, const SecureString& passwo
     MnemonicSeed seed = MnemonicSeed::Random(bip44CoinType, Language::English);
     m_HDWallet.SetEncryptedMnemonicSeed(seed);
 
+    // verify that the seed can be decrypted
     auto decSeed = m_HDWallet.GetDecryptedMnemonicSeed();
     if (!decSeed.has_value()) {
         throw std::runtime_error("Failed to get decrypted mnemonic seed");
@@ -89,7 +90,9 @@ EMSCRIPTEN_BINDINGS(PastelModule) {
         ;
     emscripten::class_<Pastel>("Pastel")
         .constructor<>()
-        .function("GetNewAddress", &Pastel::GetNewAddress);
+        .function("GetNewAddress", &Pastel::GetNewAddress)
+        .function("CreateNewWallet", &Pastel::CreateNewWallet)
+        ;
     // Add more bindings as needed
 }
 #endif

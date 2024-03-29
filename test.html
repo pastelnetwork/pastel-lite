@@ -6,7 +6,7 @@
     <script type="text/javascript" src="libpastel_wasm.js"></script>
     <script>
         Module.onRuntimeInitialized = function() {
-            document.getElementById("callFunction").addEventListener("click", function() {
+            document.getElementById("callGetLegacyAddress").addEventListener("click", function() {
                 let pastelInstance = new Module.Pastel();
                 console.log(pastelInstance)
 
@@ -17,15 +17,28 @@
                 console.log(mode)
 
                 let address = pastelInstance.GetNewAddress(mode);
+                document.getElementById("legacyAddress").innerText = address;
 
-                document.getElementById("result").innerText = address;
+                pastelInstance.delete();
+            });
+            document.getElementById("makeNewWallet").addEventListener("click", function() {
+                let pastelInstance = new Module.Pastel();
+                console.log(pastelInstance)
+
+                let selectedMode = document.getElementById("networkMode").value;
+                console.log(selectedMode)
+                console.log(Module.NetworkMode)
+                let mode = Module.NetworkMode[selectedMode];
+                console.log(mode)
+
+                const passwordField = document.getElementById('password-field');
+                const password = passwordField.value;
+                let mnemonic = pastelInstance.CreateNewWallet(mode, password);
+                document.getElementById("mnemonic").innerText = mnemonic;
 
                 pastelInstance.delete();
             });
         };
-        // Module.getRandomValue = function() {
-        //     return Math.random();
-        // };
     </script>
 </head>
 <body>
@@ -33,7 +46,10 @@
     <option value="Mainnet">Mainnet</option>
     <option value="Testnet">Testnet</option>
 </select>
-<button id="callFunction">Get New Address</button>
-<div id="result"></div>
+<button id="callGetLegacyAddress">Get New Address</button>
+<div id="legacyAddress"></div><br/>
+<input type="password" id="password-field" placeholder="Enter your password" />
+<button id="makeNewWallet">Make New Wallet</button>
+<div id="mnemonic"></div>
 </body>
 </html>

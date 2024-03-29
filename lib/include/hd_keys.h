@@ -11,19 +11,6 @@ typedef std::string HDKeyPath;
 typedef uint32_t AccountId;
 
 
-//   AccountKey GetLegacyAccountKey() const {
-//        const auto seedOpt = GetMnemonicSeed();
-//        if (!seedOpt.has_value()) {
-//            throw std::runtime_error(
-//                    "HDWallet::GenerateNewKey(): Wallet does not have a mnemonic seed.");
-//        }
-//
-//        // All mnemonic seeds are checked at construction to ensure that we can obtain
-//        // a valid spending key for the account ZCASH_LEGACY_ACCOUNT;
-//        // therefore, the `value()` call here is safe.
-//        return AccountKey::ForAccount(seedOpt.value(), BIP44CoinType(), ZCASH_LEGACY_ACCOUNT).value();
-//    }
-
 class AccountPubKey {
 private:
     CExtPubKey pubkey;

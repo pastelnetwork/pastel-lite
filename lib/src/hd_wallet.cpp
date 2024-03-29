@@ -7,11 +7,6 @@
 #include "utiltime.h"
 #include "streams.h"
 
-#include <openssl/aes.h>
-#include <openssl/evp.h>
-#include <iostream>
-
-
 bool CHDWallet::SetMasterKey(const SecureString& strPassphrase)
 {
     if (strPassphrase.empty())

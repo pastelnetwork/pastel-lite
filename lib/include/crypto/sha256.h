@@ -6,6 +6,8 @@
 #include <stdint.h>
 #include <stdlib.h>
 
+#define SHA256_DIGEST_LENGTH    32
+
 /** A hasher class for SHA-256. */
 class CSHA256
 {
