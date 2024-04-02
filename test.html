@@ -26,30 +26,39 @@
             });
 
             document.getElementById("getAddress").addEventListener("click", function() {
-                let address = pastelInstance.GetNewAddress();
+                let address = pastelInstance.MakeNewAddress();
                 let addressElement = document.createElement("div");
                 addressElement.innerText = address;
                 document.getElementById("addressList").appendChild(addressElement);
             });
             document.getElementById("getAddressWInd").addEventListener("click", function() {
-                let address = pastelInstance.GetNewAddressByIndex(ind);
-                ind++;
-                let addressElement = document.createElement("div");
-                addressElement.innerText = address;
-                document.getElementById("addressListWInd").appendChild(addressElement);
+                try {
+                    let address = pastelInstance.GetAddress(ind);
+                    ind++;
+                    let addressElement = document.createElement("div");
+                    addressElement.innerText = address;
+                    document.getElementById("addressListWInd").appendChild(addressElement);
+                } catch (e) {
+                    alert("No more addresses");
+                }
             });
 
 
 
             // Function for Export Wallet
             document.getElementById('exportWalletButton').addEventListener('click', () => {
-                let content = pastelInstance.ExportWallet();  // Get the wallet content and convert base64 to binary
+                let filename = prompt("Please enter the file name", "wallet.dat");
+                if (!filename) {
+                    alert("File name is required!");
+                    return;
+                }
+                let content = pastelInstance.ExportWallet();
                 let blob = new Blob([content], {type: "text/plain;charset=utf-8"});
                 let url = window.URL.createObjectURL(blob);
                 let fileLink = document.createElement('a');
 
                 fileLink.href = url;
-                fileLink.download = 'wallet.dat';
+                fileLink.download = filename;
                 fileLink.click(); // start download
             });
 
@@ -86,9 +95,9 @@
 <input type="password" id="password-field" placeholder="Enter your password" />
 <button id="makeNewWallet">Make New Wallet</button>
 <div id="mnemonic"></div>
-<button id="getAddress">Get New Address</button>
+<button id="getAddress">Make New Address</button>
 <div id="addressList"></div><br/>
-<button id="getAddressWInd">Get Address with index</button>
+<button id="getAddressWInd">Get Existing Address by index</button>
 <div id="addressListWInd"></div><br/>
 <button id="exportWalletButton">Export Wallet</button>
 <button id="importWalletButton">Import Wallet</button>

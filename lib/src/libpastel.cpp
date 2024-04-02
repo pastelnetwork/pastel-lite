@@ -44,11 +44,11 @@ void Pastel::ImportWallet(const string& data, const SecureString& password)
     m_HDWallet.Unlock(password);
 }
 
-string Pastel::GetNewAddress()
+string Pastel::MakeNewAddress()
 {
-    return m_HDWallet.GetNewAddress();
+    return m_HDWallet.MakeNewAddress();
 }
-string Pastel::GetNewAddressByIndex(uint32_t addrIndex)
+string Pastel::GetAddress(uint32_t addrIndex)
 {
     return m_HDWallet.GetAddress(addrIndex);
 }
@@ -68,8 +68,9 @@ EMSCRIPTEN_BINDINGS(PastelModule) {
         .function("ExportWallet", &Pastel::ExportWallet)
         .function("CreateNewWallet", &Pastel::CreateNewWallet)
         .function("ImportWallet", &Pastel::ImportWallet)
-        .function("GetNewAddress", &Pastel::GetNewAddress)
-        .function("GetNewAddressByIndex", &Pastel::GetNewAddressByIndex)
+        .function("MakeNewAddress", &Pastel::MakeNewAddress)
+        .function("GetAddress", &Pastel::GetAddress)
+        .function("GetAddressesCount", &Pastel::GetAddressesCount)
         ;
     // Add more bindings as needed
 }

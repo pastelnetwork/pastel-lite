@@ -7,13 +7,13 @@ int main() {
     auto mnem = lib.CreateNewWallet(NetworkMode::MAINNET, "password");
     std::cout << "Mnemonic: " << mnem << std::endl;
 
-    std::cout << "New Address  0: " << lib.GetNewAddress() << std::endl;
-    std::cout << "New Address  1: " << lib.GetNewAddress() << std::endl;
-    std::cout << "New Address  2: " << lib.GetNewAddress() << std::endl;
+    std::cout << "New Address  0: " << lib.MakeNewAddress() << std::endl;
+    std::cout << "New Address  1: " << lib.MakeNewAddress() << std::endl;
+    std::cout << "New Address  2: " << lib.MakeNewAddress() << std::endl;
     std::cout << std::endl;
-    std::cout << "Same Address 0: " << lib.GetNewAddressByIndex(0) << std::endl;
-    std::cout << "Same Address 1: " << lib.GetNewAddressByIndex(1) << std::endl;
-    std::cout << "Same Address 2: " << lib.GetNewAddressByIndex(2) << std::endl;
+    std::cout << "Same Address 0: " << lib.GetAddress(0) << std::endl;
+    std::cout << "Same Address 1: " << lib.GetAddress(1) << std::endl;
+    std::cout << "Same Address 2: " << lib.GetAddress(2) << std::endl;
 
     auto wallet= lib.ExportWallet();
 
@@ -25,13 +25,13 @@ int main() {
     for (const auto& addr : list) {
         std::cout << addr << std::endl;
     }
-    std::cout << "New Address  3: " << lib2.GetNewAddress() << std::endl;
-    std::cout << "New Address  4: " << lib2.GetNewAddress() << std::endl;
-    std::cout << "New Address  5: " << lib2.GetNewAddress() << std::endl;
+    std::cout << "New Address  3: " << lib2.MakeNewAddress() << std::endl;
+    std::cout << "New Address  4: " << lib2.MakeNewAddress() << std::endl;
+    std::cout << "New Address  5: " << lib2.MakeNewAddress() << std::endl;
     std::cout << std::endl;
-    std::cout << "Same Address 3: " << lib2.GetNewAddressByIndex(3) << std::endl;
-    std::cout << "Same Address 4: " << lib2.GetNewAddressByIndex(4) << std::endl;
-    std::cout << "Same Address 5: " << lib2.GetNewAddressByIndex(5) << std::endl;
+    std::cout << "Same Address 3: " << lib2.GetAddress(3) << std::endl;
+    std::cout << "Same Address 4: " << lib2.GetAddress(4) << std::endl;
+    std::cout << "Same Address 5: " << lib2.GetAddress(5) << std::endl;
 
     return 0;
 }

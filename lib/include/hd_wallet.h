@@ -32,12 +32,13 @@ public:
     [[nodiscard]] string SetupNewWallet(NetworkMode mode, const SecureString& password);
     void Unlock(const SecureString& strPassphrase);
 
-    [[nodiscard]] string GetNewAddress();
+    [[nodiscard]] string MakeNewAddress();
     [[nodiscard]] string GetAddress(uint32_t addrIndex);
     [[nodiscard]] optional<CKey> GetAddressKey(const string& address);
     [[nodiscard]] optional<CKey> GetAddressKey(uint32_t addrIndex) const;
     [[nodiscard]] string GetNewLegacyAddress();
 
+    [[nodiscard]] uint32_t GetAddressesCount() const { return m_indexAddressMap.size(); }
     [[nodiscard]] vector<string> GetAddresses() const {
         vector<string> addresses;
         addresses.reserve(m_indexAddressMap.size());
@@ -77,7 +78,9 @@ private:
     bool setEncryptedMnemonicSeed(const MnemonicSeed& seed, string& error = (string &) "") noexcept;
     [[nodiscard]] optional<MnemonicSeed> getDecryptedMnemonicSeed() const noexcept;
 
+    [[nodiscard]] string getAddressByIndex(uint32_t addrIndex, bool bCreateNew = false);
     [[nodiscard]] optional<AccountKey> getAccountKey() const noexcept;
+
     void setNetworkParams(NetworkMode mode);
     static string encodePublicKey(const CKeyID& id, const CChainParams* network) noexcept;
 };

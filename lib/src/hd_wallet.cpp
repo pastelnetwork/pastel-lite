@@ -150,13 +150,23 @@ void CHDWallet::Unlock(const SecureString& strPassphrase)
     return nullopt;
 }
 
-[[nodiscard]] string CHDWallet::GetNewAddress() {
+[[nodiscard]] string CHDWallet::MakeNewAddress() {
     auto size = m_addressIndexMap.size();
-    return GetAddress(size);
+    return getAddressByIndex(size, true);
 }
 
 [[nodiscard]] string CHDWallet::GetAddress(uint32_t addrIndex) {
-    // We can search for the address in the map, but we better derive it again
+    return getAddressByIndex(addrIndex, false);
+}
+
+[[nodiscard]] string CHDWallet::getAddressByIndex(uint32_t addrIndex, bool bCreateNew) {
+    if (m_indexAddressMap.contains(addrIndex)) {
+        return m_indexAddressMap[addrIndex];
+    }
+
+    if (!bCreateNew) {
+        throw runtime_error("Address not found");
+    }
 
     auto key = GetAddressKey(addrIndex);
 

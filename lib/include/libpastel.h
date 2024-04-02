@@ -25,8 +25,9 @@ public:
     string ExportWallet();
     void ImportWallet(const string& data, const SecureString& password);
 
-    string GetNewAddress();
-    string GetNewAddressByIndex(uint32_t addrIndex);
+    string MakeNewAddress();
+    string GetAddress(uint32_t addrIndex);
 
     vector<string> GetAddresses() { return m_HDWallet.GetAddresses(); }
+    uint32_t GetAddressesCount() { return m_HDWallet.GetAddressesCount(); }
 };
