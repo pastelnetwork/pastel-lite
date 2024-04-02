@@ -5,38 +5,75 @@
     <title>Test</title>
     <script type="text/javascript" src="libpastel_wasm.js"></script>
     <script>
+        let pastelInstance;
+        let ind = 0;
+
         Module.onRuntimeInitialized = function() {
-            document.getElementById("callGetLegacyAddress").addEventListener("click", function() {
-                let pastelInstance = new Module.Pastel();
-                console.log(pastelInstance)
+            pastelInstance = new Module.Pastel();
+            console.log(pastelInstance);
 
-                let selectedMode = document.getElementById("networkMode").value;
-                console.log(selectedMode)
-                console.log(Module.NetworkMode)
-                let mode = Module.NetworkMode[selectedMode];
-                console.log(mode)
-
-                let address = pastelInstance.GetNewAddress(mode);
-                document.getElementById("legacyAddress").innerText = address;
-
-                pastelInstance.delete();
-            });
             document.getElementById("makeNewWallet").addEventListener("click", function() {
-                let pastelInstance = new Module.Pastel();
-                console.log(pastelInstance)
-
                 let selectedMode = document.getElementById("networkMode").value;
-                console.log(selectedMode)
-                console.log(Module.NetworkMode)
+                console.log(selectedMode);
+                console.log(Module.NetworkMode);
                 let mode = Module.NetworkMode[selectedMode];
-                console.log(mode)
+                console.log(mode);
 
                 const passwordField = document.getElementById('password-field');
                 const password = passwordField.value;
                 let mnemonic = pastelInstance.CreateNewWallet(mode, password);
                 document.getElementById("mnemonic").innerText = mnemonic;
+            });
 
-                pastelInstance.delete();
+            document.getElementById("getAddress").addEventListener("click", function() {
+                let address = pastelInstance.GetNewAddress();
+                let addressElement = document.createElement("div");
+                addressElement.innerText = address;
+                document.getElementById("addressList").appendChild(addressElement);
+            });
+            document.getElementById("getAddressWInd").addEventListener("click", function() {
+                let address = pastelInstance.GetNewAddressByIndex(ind);
+                ind++;
+                let addressElement = document.createElement("div");
+                addressElement.innerText = address;
+                document.getElementById("addressListWInd").appendChild(addressElement);
+            });
+
+
+
+            // Function for Export Wallet
+            document.getElementById('exportWalletButton').addEventListener('click', () => {
+                let content = pastelInstance.ExportWallet();  // Get the wallet content and convert base64 to binary
+                let blob = new Blob([content], {type: "text/plain;charset=utf-8"});
+                let url = window.URL.createObjectURL(blob);
+                let fileLink = document.createElement('a');
+
+                fileLink.href = url;
+                fileLink.download = 'wallet.dat';
+                fileLink.click(); // start download
+            });
+
+            // Function for Import Wallet
+            document.getElementById('importWalletButton').addEventListener('click', () => {
+                let fileSelector = document.createElement('input');
+                fileSelector.setAttribute('type', 'file');
+                fileSelector.click();
+
+                fileSelector.onchange = (e) => {
+                    let file = e.target.files[0];
+                    let reader = new FileReader();
+
+                    reader.onload = () => {
+                        let content = reader.result; // encode the content to base64
+                        let password = window.prompt("Please enter your password");
+                        if (password) {
+                            pastelInstance.ImportWallet(content, password);
+                        } else {
+                            alert("Password is required!");
+                        }
+                    };
+                    reader.readAsText(file,'UTF-8');
+                };
             });
         };
     </script>
@@ -46,10 +83,14 @@
     <option value="Mainnet">Mainnet</option>
     <option value="Testnet">Testnet</option>
 </select>
-<button id="callGetLegacyAddress">Get New Address</button>
-<div id="legacyAddress"></div><br/>
 <input type="password" id="password-field" placeholder="Enter your password" />
 <button id="makeNewWallet">Make New Wallet</button>
 <div id="mnemonic"></div>
+<button id="getAddress">Get New Address</button>
+<div id="addressList"></div><br/>
+<button id="getAddressWInd">Get Address with index</button>
+<div id="addressListWInd"></div><br/>
+<button id="exportWalletButton">Export Wallet</button>
+<button id="importWalletButton">Import Wallet</button>
 </body>
 </html>

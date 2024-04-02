@@ -16,7 +16,7 @@
                 let mode = Module.NetworkMode[selectedMode];
                 console.log(mode)
 
-                let address = pastelInstance.GetNewAddress(mode);
+                let address = pastelInstance.GetAddress(mode);
 
                 document.getElementById("result").innerText = address;
 

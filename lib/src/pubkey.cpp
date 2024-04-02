@@ -6,6 +6,7 @@
 
 #include "pubkey.h"
 #include "ecc_context.h"
+#include "hash.h"
 
 #include "secp256k1_recovery.h"
 
@@ -139,4 +140,15 @@ bool CExtPubKey::Derive(CExtPubKey &out, unsigned int nChild) const
     if (!secp256k1_ecdsa_signature_parse_der(secp256k1_context_verify, &sig, &vchSig[0], vchSig.size()))
         return false;
     return (!secp256k1_ecdsa_signature_normalize(secp256k1_context_verify, nullptr, &sig));
+}
+
+CKeyID CPubKey::GetID() const
+{
+    return CKeyID(Hash160(vch, vch + size()));
+}
+
+//! Get the 256-bit hash of this public key.
+uint256 CPubKey::GetHash() const
+{
+    return Hash(vch, vch + size());
 }

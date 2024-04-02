@@ -11,34 +11,13 @@ typedef std::string HDKeyPath;
 typedef uint32_t AccountId;
 
 
-class AccountPubKey {
-private:
-    CExtPubKey pubkey;
-public:
-    AccountPubKey(CExtPubKey pubkey): pubkey(pubkey) {};
-
-    const CExtPubKey& GetPubKey() const {
-        return pubkey;
-    }
-
-    std::optional<CPubKey> DeriveExternal(uint32_t addrIndex) const;
-
-    std::optional<CPubKey> DeriveInternal(uint32_t addrIndex) const;
-
-    friend bool operator==(const AccountPubKey& a, const AccountPubKey& b)
-    {
-        return a.pubkey == b.pubkey;
-    }
-};
-
 class AccountKey {
 private:
     CExtKey accountKey;
     CExtKey external;
-    CExtKey internal;
 
-    AccountKey(CExtKey accountKeyIn, CExtKey externalIn, CExtKey internalIn):
-            accountKey(accountKeyIn), external(externalIn), internal(internalIn) {}
+    AccountKey(CExtKey accountKeyIn, CExtKey externalIn):
+        accountKey(std::move(accountKeyIn)), external(std::move(externalIn)) {}
 
 public:
     static std::optional<AccountKey> MakeAccount(const HDSeed& seed, uint32_t bip44CoinType, AccountId accountId);
@@ -61,22 +40,15 @@ public:
      * Generate the key corresponding to the specified index at the "external child"
      * level of the path for the account.
      */
-    std::optional<CKey> DeriveExternalSpendingKey(uint32_t addrIndex) const;
-
-    /**
-     * Generate the key corresponding to the specified index at the "internal child"
-     * level of the path for the account. This should probably only usually be
-     * used at address index 0.
-     */
-    std::optional<CKey> DeriveInternalSpendingKey(uint32_t addrIndex = 0) const;
-
-    /**
-     * Return the public key associated with this spending key.
-     */
-    AccountPubKey GetAccountPubKey() const;
+    [[nodiscard]] std::optional<CKey> Derive(uint32_t addrIndex) const;
 
     friend bool operator==(const AccountKey& a, const AccountKey& b)
     {
         return a.accountKey == b.accountKey;
+    }
+
+    void Clear() {
+        accountKey.key.Clear();
+        external.key.Clear();
     }
 };

@@ -11,6 +11,7 @@
 #include "crypto/hmac_sha512.h"
 #include "pubkey.h"
 #include "ecc_context.h"
+#include "hash.h"
 
 using namespace std;
 

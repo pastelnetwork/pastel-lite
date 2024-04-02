@@ -11,6 +11,7 @@
 #include "pubkey.h"
 #include "serialize.h"
 #include "uint256.h"
+#include "support/cleanse.h"
 
 /**
  * secure_allocator is defined in allocators.h
@@ -96,6 +97,14 @@ public:
             fValid = true;
             fCompressed = fCompressedIn;
         } while (false);
+    }
+
+    void Clear()
+    {
+        fValid = false;
+        fCompressed = false;
+        memory_cleanse(keydata.data(), keydata.size());
+        keydata.clear();
     }
 
     //! Simple read-only vector-like interface.

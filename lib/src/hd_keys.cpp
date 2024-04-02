@@ -24,15 +24,15 @@ std::optional<AccountKey> AccountKey::MakeAccount(const HDSeed& seed, uint32_t b
     if (!accountKeyOpt.has_value()) return std::nullopt;
 
     auto accountKey = accountKeyOpt.value();
+    // Derive m/44'/coin_type'/account_id'/0 - external/receiving address
     auto external = accountKey.Derive(0);
-    auto internal = accountKey.Derive(1);
 
-    if (!(external.has_value() && internal.has_value())) return std::nullopt;
+    if (!external.has_value()) return std::nullopt;
 
-    return AccountKey(accountKey, external.value(), internal.value());
+    return AccountKey(accountKey, external.value());
 }
 
-std::optional<CKey> AccountKey::DeriveExternalSpendingKey(uint32_t addrIndex) const {
+std::optional<CKey> AccountKey::Derive(uint32_t addrIndex) const {
     auto childKey = external.Derive(addrIndex);
     if (!childKey.has_value()) return std::nullopt;
     return childKey.value().key;

@@ -4,11 +4,8 @@
 
 #include "libpastel.h"
 #include "base58.h"
-#include "pubkey.h"
-#include "key.h"
 #include "crypto/common.h"
 #include "hd_wallet.h"
-#include "streams.h"
 
 #ifdef __EMSCRIPTEN__
 #include <emscripten/bind.h>
@@ -17,68 +14,44 @@
 using namespace std;
 
 Pastel::Pastel(){
-    m_Networks[NetworkMode::MAINNET] = new CMainnetParams();
-    m_Networks[NetworkMode::TESTNET] = new CTestnetParams();
-    m_Networks[NetworkMode::REGTEST] = new CRegtestParams();
     init_and_check_sodium();
 }
-
-static string encodePublicKey(const CKeyID& id, const CChainParams* network)
+string Pastel::CreateNewWallet(NetworkMode mode, const SecureString& password)
 {
-    v_uint8 pubKey = network->Base58Prefix(CChainParams::Base58Type::PUBKEY_ADDRESS);
-    pubKey.insert(pubKey.end(), id.begin(), id.end());
-    return EncodeBase58Check(pubKey);
+    return m_HDWallet.SetupNewWallet(mode, password);
 }
 
-string Pastel::GetNewAddress(const NetworkMode mode)
+void Pastel::CreateWalletFromMnemonic(const string& mnemonic, NetworkMode mode, const SecureString& password)
 {
-    CKey secret;
-    secret.MakeNewKey(true);
 
-    const CPubKey newKey = secret.GetPubKey();
-    if (!secret.VerifyPubKey(newKey)) {
-        throw std::runtime_error("Failed to verify public key");
-    }
-
-    // Get private key
-    const CPrivKey privkey = secret.GetPrivKey();
-
-    // Get and encode public key
-    const CKeyID keyID = newKey.GetID();
-    const CChainParams *network = m_Networks[mode];
-    return encodePublicKey(keyID, network);
 }
-std::string Pastel::CreateNewWallet(NetworkMode mode, const SecureString& password)
+string Pastel::ExportWallet()
 {
-    // Generate new random master key and encrypt it using key derived from password
-    if (!m_HDWallet.SetMasterKey(password)) {
-        throw std::runtime_error("Failed to set master key");
-    }
-
-    // Generate new random mnemonic seed and encrypt it using master key
-    auto bip44CoinType = m_Networks[mode]->BIP44CoinType();
-    MnemonicSeed seed = MnemonicSeed::Random(bip44CoinType, Language::English);
-    m_HDWallet.SetEncryptedMnemonicSeed(seed);
-
-    // verify that the seed can be decrypted
-    auto decSeed = m_HDWallet.GetDecryptedMnemonicSeed();
-    if (!decSeed.has_value()) {
-        throw std::runtime_error("Failed to get decrypted mnemonic seed");
-    }
-    return seed.GetMnemonic();
+    CSecureDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
+    ss << m_HDWallet;
+    vector<unsigned char> vchWallet(ss.begin(), ss.end());
+    auto strWallet = EncodeBase58(vchWallet);
+    return strWallet;
 }
-//void Pastel::ImportWalletFromMnemonic(const std::string& mnemonic, NetworkMode mode, SecureString password)
-//{
-//
-//}
-//void Pastel::ImportWallet(const std::vector<unsigned char>& data, SecureString password)
-//{
-//
-//}
-//std::vector<unsigned char> Pastel::ExportWallet()
-//{
-//    return std::vector<unsigned char>();
-//}
+void Pastel::ImportWallet(const string& data, const SecureString& password)
+{
+    vector<unsigned char> vchWallet;
+    if (!DecodeBase58(data, vchWallet)) {
+        throw runtime_error("Failed to decode base58 wallet data");
+    }
+    CSecureDataStream ss(vchWallet, SER_NETWORK, PROTOCOL_VERSION);
+    ss >> m_HDWallet;
+    m_HDWallet.Unlock(password);
+}
+
+string Pastel::GetNewAddress()
+{
+    return m_HDWallet.GetNewAddress();
+}
+string Pastel::GetNewAddressByIndex(uint32_t addrIndex)
+{
+    return m_HDWallet.GetAddress(addrIndex);
+}
 
 
 #ifdef __EMSCRIPTEN__
@@ -90,8 +63,13 @@ EMSCRIPTEN_BINDINGS(PastelModule) {
         ;
     emscripten::class_<Pastel>("Pastel")
         .constructor<>()
-        .function("GetNewAddress", &Pastel::GetNewAddress)
         .function("CreateNewWallet", &Pastel::CreateNewWallet)
+        .function("CreateWalletFromMnemonic", &Pastel::CreateWalletFromMnemonic)
+        .function("ExportWallet", &Pastel::ExportWallet)
+        .function("CreateNewWallet", &Pastel::CreateNewWallet)
+        .function("ImportWallet", &Pastel::ImportWallet)
+        .function("GetNewAddress", &Pastel::GetNewAddress)
+        .function("GetNewAddressByIndex", &Pastel::GetNewAddressByIndex)
         ;
     // Add more bindings as needed
 }

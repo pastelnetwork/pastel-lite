@@ -57,8 +57,7 @@ class CMasterKey
 public:
     std::vector<unsigned char> vchCryptedKey;
     std::vector<unsigned char> vchSalt;
-    //! 0 = EVP_sha512()
-    //! 1 = scrypt()
+    //! 0 = BytesToKeySHA512AES()
     unsigned int nDerivationMethod;
     unsigned int nDeriveIterations;
     //! Use this for more parameters to key derivation,

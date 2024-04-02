@@ -25,13 +25,10 @@ std::optional<MnemonicSeed> MnemonicSeed::FromEntropy(const RawHDSeed& entropy, 
 
      // Verify that the seed data is valid entropy for keys at
      // account 0 and at both the public & private chain levels for account 0x7FFFFFFF.
-
     auto key1 = AccountKey::MakeAccount(seed, bip44CoinType, 0);
     auto key2 = AccountKey::MakeAccount(seed, bip44CoinType, HARDENED_KEY_LIMIT-1);
     if (key1.has_value() && key2.has_value()) {
         return seed;
-    } else {
-        return std::nullopt;
     }
     return std::nullopt;
 }

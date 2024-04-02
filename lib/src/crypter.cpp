@@ -75,8 +75,8 @@ bool CCrypter::Encrypt(const CKeyingMaterial& vchPlaintext, v_uint8& vchCipherte
     if (!fKeySet)
         return false;
 
-    // max ciphertext len for a n bytes of plaintext is
-    // n + AES_BLOCKSIZE bytes
+    // max ciphertext len for an N bytes of plaintext is
+    // N + AES_BLOCKSIZE bytes
     vchCiphertext.resize(vchPlaintext.size() + AES_BLOCKSIZE);
 
     AES256CBCEncrypt enc(vchKey.data(), vchIV.data(), true);

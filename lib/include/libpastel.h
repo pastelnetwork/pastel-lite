@@ -13,16 +13,20 @@
 using namespace std;
 
 class Pastel {
-    std::map<NetworkMode, CChainParams*> m_Networks;
+    map<NetworkMode, CChainParams*> m_Networks;
     CHDWallet m_HDWallet;
 
 public:
     Pastel();
-    std::string GetNewAddress(NetworkMode mode);
 
-    std::string CreateNewWallet(NetworkMode mode, const SecureString& password);
-//    void ImportWalletFromMnemonic(const std::string& mnemonic, NetworkMode mode, SecureString password);
-//
-//    void ImportWallet(const std::vector<unsigned char>& data, SecureString password);
-//    std::vector<unsigned char> ExportWallet();
+    string CreateNewWallet(NetworkMode mode, const SecureString& password);
+    void CreateWalletFromMnemonic(const string& mnemonic, NetworkMode mode, const SecureString& password);
+
+    string ExportWallet();
+    void ImportWallet(const string& data, const SecureString& password);
+
+    string GetNewAddress();
+    string GetNewAddressByIndex(uint32_t addrIndex);
+
+    vector<string> GetAddresses() { return m_HDWallet.GetAddresses(); }
 };

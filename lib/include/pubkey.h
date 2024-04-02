@@ -8,7 +8,6 @@
 #include <stdexcept>
 
 #include "vector_types.h"
-#include "hash.h"
 #include "serialize.h"
 #include "uint256.h"
 
@@ -145,16 +144,10 @@ public:
     }
 
     //! Get the KeyID of this public key (hash of its serialization)
-    CKeyID GetID() const
-    {
-        return CKeyID(Hash160(vch, vch + size()));
-    }
+    CKeyID GetID() const;
 
     //! Get the 256-bit hash of this public key.
-    uint256 GetHash() const
-    {
-        return Hash(vch, vch + size());
-    }
+    uint256 GetHash() const;
 
     /*
      * Check syntactic correctness.

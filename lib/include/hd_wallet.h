@@ -5,16 +5,79 @@
 
 #include "crypter.h"
 #include "hd_mnemonic.h"
+#include "hd_keys.h"
 #include "types.h"
+#include "chain.h"
+
+using namespace std;
 
 class CHDWallet
 {
-    std::pair<uint256, std::vector<unsigned char>> m_encryptedMnemonicSeed;
-    CMasterKey m_encryptedMasterKey;
-    CKeyingMaterial m_vMasterKey;
+    // Can serialize
+    NetworkMode m_NetworkMode;
+
+    pair<uint256, vector<unsigned char>> m_encryptedMnemonicSeed; // [fingerprint, seed encrypted with m_vMasterKey]
+    CMasterKey m_encryptedMasterKey;    // m_vMasterKey encrypted with key derived from passphrase, also keeps salt and derivation method inside
+
+    map<string, uint32_t> m_addressIndexMap;  // to access address index by address
+    map<string, CKey> m_addressMapNonHD;      // to access exported NON HD private keys by address. TODO: encryption/decryption for serialization/deserialization
+
+    // Do not serialize
+    CKeyingMaterial m_vMasterKey;   // random key
+
+    map<uint32_t, string> m_indexAddressMap;  // to access address by index
+    CChainParams* m_NetworkParams;
 
 public:
-    bool SetMasterKey(const SecureString& strPassphrase);
-    bool SetEncryptedMnemonicSeed(const MnemonicSeed& seed);
-    [[nodiscard]] std::optional<MnemonicSeed> GetDecryptedMnemonicSeed() const;
+    [[nodiscard]] string SetupNewWallet(NetworkMode mode, const SecureString& password);
+    void Unlock(const SecureString& strPassphrase);
+
+    [[nodiscard]] string GetNewAddress();
+    [[nodiscard]] string GetAddress(uint32_t addrIndex);
+    [[nodiscard]] optional<CKey> GetAddressKey(const string& address);
+    [[nodiscard]] optional<CKey> GetAddressKey(uint32_t addrIndex) const;
+    [[nodiscard]] string GetNewLegacyAddress();
+
+    [[nodiscard]] vector<string> GetAddresses() const {
+        vector<string> addresses;
+        addresses.reserve(m_indexAddressMap.size());
+        for(const auto& pair : m_indexAddressMap) {
+            addresses.push_back(pair.second);
+        }
+        return addresses;
+    }
+
+    [[nodiscard]] NetworkMode GetNetworkMode() const { return m_NetworkMode; }
+
+    ADD_SERIALIZE_METHODS;
+
+    template <typename Stream, typename Operation>
+    inline void SerializationOp(Stream& s, Operation ser_action) {
+        if (ser_action == SERIALIZE_ACTION::Read) {
+            uint32_t mode;
+            READWRITE(mode);
+            m_NetworkMode = static_cast<NetworkMode>(mode);
+            setNetworkParams(m_NetworkMode);
+        } else {
+            auto mode = static_cast<uint32_t>(m_NetworkMode);
+            READWRITE(mode);
+        }
+        READWRITE(m_encryptedMnemonicSeed);
+        READWRITE(m_encryptedMasterKey);
+        READWRITE(m_addressIndexMap);
+        if (ser_action == SERIALIZE_ACTION::Read) {
+            for (const auto& pair : m_addressIndexMap) {
+                m_indexAddressMap[pair.second] = pair.first;
+            }
+        }
+    }
+
+private:
+    bool setMasterKey(const SecureString& strPassphrase, string& error = (string &) "") noexcept;
+    bool setEncryptedMnemonicSeed(const MnemonicSeed& seed, string& error = (string &) "") noexcept;
+    [[nodiscard]] optional<MnemonicSeed> getDecryptedMnemonicSeed() const noexcept;
+
+    [[nodiscard]] optional<AccountKey> getAccountKey() const noexcept;
+    void setNetworkParams(NetworkMode mode);
+    static string encodePublicKey(const CKeyID& id, const CChainParams* network) noexcept;
 };
