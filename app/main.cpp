@@ -16,22 +16,30 @@ int main() {
     std::cout << "Same Address 2: " << lib.GetAddress(2) << std::endl;
 
     auto wallet= lib.ExportWallet();
+    std::cout << wallet << std::endl;
 
-    auto wallet2 = "w5dddcKJHcKcwqJrwqgWwoJCHcK4wobCvMORAC/CmRHCsWVGw7FvcQdVw7vCr1jDoTNfFsKCwrXDvcOjHUfDmsOOwrXCjMK8QsOGJMOLNcK0fcO3w4Eow4DDtEDDqhkzPzHDlEgww7MweMONWQwGPsOjw4TCusOqL8Oiw7gPNMOycMOIw4TClAp5w5ZRw7XCnsOFw41PwoDCvsK3S1zCuj3DpsKiwq9vGBjDgXvCghgQw5vCvCdfwpFWMgzCmsKbHwHCuQLCjWfCscK8eMKdwonCosOxw6fDjnFNwqnDkSfCoMKgw5hKAy/CvUvDg8OMZFwNCcOxZsO7wrbCiTDCqcOnOywOw7bDsRbDlxVzccO2EQjDql9iw7vDl8Khw4LDssO7w590UcOqw4vCncKHe8OWSXFBJmTDhgoywq3Dl8K5wr7CtQXDq3jCk8K2w5kLwqU4E8OIIMKGJcOzw6cnw6jDoHQfwrFFUgVdZxcAQB1zBi7CoMO1fMKww5ISw6zDs1jCvMOKJjTDt1zDsMKPwoAcwrbCrXFsw5zCkC1ZK8Ozwo0gwo3DjAp4wpEBZ8KuKMO3Cno8wr3CqhVDecKiw60nw7bDp2DDmEjDnMOxw6x2w6cUw5dhw4XCiMO6wqRswqkTa8K7wo7CucKBw6o4wpNxJ8KKJWkoY23ClWkKKcOqwrjDknLDrMOwT3YyF2vCmWDCuhxmw7oMw4oqwqDDnTTDlcO1TsKzAhLDvELDg0VJFjHDmsKYc8KcwrZ4w5bCsMOhwpnDksKhwpgQwqvCoxbDnsOxEcONSsKKDx3DrWrDg8Kgw7PCmcKDJ0o=";
+    auto wallet2 = "11114YN6Aey8kUNoL8jjfkTx2iWPshvbNST5sjt5czmyxCNBMRYYgsm6SjCyanjH7Fkod7XCvYLnTn4Y1CKy1ZpDWS1bfbtxpQvMT9nWSGuuBjn1tYvvpeQqbWYwhd8HTNdAHZXGwQTP4TwQwKLWi2ATb2khvBwREqu2RQ355NaZZoJrKQuZFdvxKyrZT3baZFmZvvEhzthXy4FVX1CDQAH2b85UmJyokicxPbwnrjusfjQwB8jGvKnfuWeQBBLyW4zAnhUgXj1sRwE4MUGgrGaFgiR5VfALUbshQfQ9j7eycLS1Cgs3C1zP4y2wa9hmQmRDENtYCqUzqLcQ3FfGxf5Mo6q38u5R7cjfw944P1Qa7DrBfSbYiF6kTsrueoFaf89fGmbwSyq6mXB9NXXDmeQc6gfYpYJDwpkPvL8U1pCTzSCE2nN8Sz1zY99pDEayt8ayHfyBzzCbXBiFizEtthx1KwJZQAmP6DgQJS6An3SVSP5cWE5nbWmnzeYzCg36kQE2GsKxFBYL7";
     Pastel lib2;
-    lib2.ImportWallet(wallet, "password");
+    std::cout << lib2.ImportWallet(wallet2) << std::endl;
     auto list = lib2.GetAddresses();
     std::cout << "Imported Addresses: " << std::endl;
-    for (const auto& addr : list) {
-        std::cout << addr << std::endl;
-    }
+    std::cout << list << std::endl;
+//    for (const auto& addr : list) {
+//        std::cout << addr << std::endl;
+//    }
+
+    std::cout << "New Address  3: " << lib2.MakeNewAddress() << std::endl;
+
+    std::cout << lib2.UnlockWallet("password") << std::endl;
     std::cout << "New Address  3: " << lib2.MakeNewAddress() << std::endl;
     std::cout << "New Address  4: " << lib2.MakeNewAddress() << std::endl;
     std::cout << "New Address  5: " << lib2.MakeNewAddress() << std::endl;
     std::cout << std::endl;
+    std::cout << lib2.LockWallet() << std::endl;
     std::cout << "Same Address 3: " << lib2.GetAddress(3) << std::endl;
     std::cout << "Same Address 4: " << lib2.GetAddress(4) << std::endl;
     std::cout << "Same Address 5: " << lib2.GetAddress(5) << std::endl;
+    std::cout << lib2.GetAddressesCount() << std::endl;
 
     return 0;
 }

@@ -19,15 +19,15 @@ class Pastel {
 public:
     Pastel();
 
+    // Wallet functions
     string CreateNewWallet(NetworkMode mode, const SecureString& password);
-    void CreateWalletFromMnemonic(const string& mnemonic, NetworkMode mode, const SecureString& password);
-
+    string CreateWalletFromMnemonic(const string& mnemonic, NetworkMode mode, const SecureString& password);
     string ExportWallet();
-    void ImportWallet(const string& data, const SecureString& password);
-
+    string ImportWallet(const string& data);
+    string UnlockWallet(const SecureString& password);
+    string LockWallet();
     string MakeNewAddress();
     string GetAddress(uint32_t addrIndex);
-
-    vector<string> GetAddresses() { return m_HDWallet.GetAddresses(); }
-    uint32_t GetAddressesCount() { return m_HDWallet.GetAddressesCount(); }
+    string GetAddressesCount();
+    string GetAddresses();
 };

@@ -116,6 +116,13 @@ bool CHDWallet::setEncryptedMnemonicSeed(const MnemonicSeed& seed, string& error
     return true;
 }
 
+void CHDWallet::Lock()
+{
+    memory_cleanse(&m_vMasterKey[0], m_vMasterKey.size());
+    m_vMasterKey.clear();
+}
+
+
 void CHDWallet::Unlock(const SecureString& strPassphrase)
 {
     if (strPassphrase.empty())

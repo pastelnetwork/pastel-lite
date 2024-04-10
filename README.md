@@ -72,21 +72,7 @@ Add `Emscripten` to your `PATH` environment variable.
 export PATH=$PATH:/Users/name/emsdk/upstream/emscripten/
 ```
 
-### 4. Install `zig`, if not already installed
-#### Linux
-``` bash
-sudo snap install zig --classic --beta
-```
-#### Mac
-``` bash
-brew install zig
-```
-#### Windows
-``` bash
-choco install zig
-```
-
-### 5. Install 3rd party packages with `vcpkg` - for native build ONLY
+### 4. Install 3rd party packages with `vcpkg` - for native build ONLY
 ``` bash
 cd pastel-light
 vcpkg install
@@ -96,7 +82,7 @@ Currently they are:
 * `libsodium`
 * `OpenSLL`
 
-### 6. Build native library `libpastel` and test tool `pastel_lite` 
+### 5. Build native library `libpastel` and test tool `pastel_lite` 
 ``` bash
 mkdir build-native-debug
 cd build-native-debug
@@ -105,7 +91,7 @@ cmake --build .
 ```
 > Replace `<path-to-vcpkg>` with the path from step 2.
 
-### 7. Build WebAssembly library `libpastel-wasm` 
+### 6. Build WebAssembly library `libpastel-wasm` 
 ``` bash
 mkdir build-wasm-debug
 cd build-wasm-debug

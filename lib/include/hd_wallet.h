@@ -30,6 +30,7 @@ class CHDWallet
 
 public:
     [[nodiscard]] string SetupNewWallet(NetworkMode mode, const SecureString& password);
+    void Lock();
     void Unlock(const SecureString& strPassphrase);
 
     [[nodiscard]] string MakeNewAddress();
