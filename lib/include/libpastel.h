@@ -30,4 +30,8 @@ public:
     string GetAddress(uint32_t addrIndex);
     string GetAddressesCount();
     string GetAddresses();
+    string GetWalletPubKey();    // returns base58 encoded Public Key, w/o prefix and checksum
+    string SignWithWalletKey(string message);
+    string GetPubKeyAt(uint32_t addrIndex);   // returns base58 encoded Public Key, w/o prefix and checksum
+    string SignWithKeyAt(uint32_t addrIndex, string message);
 };

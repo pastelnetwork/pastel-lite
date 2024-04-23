@@ -32,8 +32,8 @@ std::optional<AccountKey> AccountKey::MakeAccount(const HDSeed& seed, uint32_t b
     return AccountKey(accountKey, external.value());
 }
 
-std::optional<CKey> AccountKey::Derive(uint32_t addrIndex) const {
+std::optional<CExtKey> AccountKey::Derive(uint32_t addrIndex) const {
     auto childKey = external.Derive(addrIndex);
     if (!childKey.has_value()) return std::nullopt;
-    return childKey.value().key;
+    return childKey.value();
 }

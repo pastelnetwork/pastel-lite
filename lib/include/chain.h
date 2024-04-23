@@ -39,6 +39,7 @@ public:
     }
 
     uint32_t bip44CoinType = 0;
+    uint32_t walletIDIndex = 0xA0000001;
 
     [[nodiscard]] uint32_t BIP44CoinType() const noexcept { return bip44CoinType; }
 };
@@ -47,6 +48,7 @@ class CMainnetParams : public CChainParams {
 public:
     CMainnetParams(){
         m_base58Prefixes[to_integral_type(Base58Type::PUBKEY_ADDRESS)] = {0x0c, 0xe3};
+        m_base58Prefixes[to_integral_type(Base58Type::EXT_PUBLIC_KEY)] = {0x04, 0x88, 0xB2, 0x1E};
         bip44CoinType = 4826951;    //0x0049A747; bip44CoinTypeHard => 0x8049A747
     }
 };
@@ -55,6 +57,7 @@ class CTestnetParams : public CChainParams {
 public:
     CTestnetParams(){
         m_base58Prefixes[to_integral_type(Base58Type::PUBKEY_ADDRESS)] = {0x1C, 0xEF};
+        m_base58Prefixes[to_integral_type(Base58Type::EXT_PUBLIC_KEY)] = {0x04, 0x35, 0x87, 0xCF};
     }
 };
 
@@ -62,5 +65,6 @@ class CRegtestParams : public CChainParams {
 public:
     CRegtestParams(){
         m_base58Prefixes[to_integral_type(Base58Type::PUBKEY_ADDRESS)] = {0x1C, 0xEF};
+        m_base58Prefixes[to_integral_type(Base58Type::EXT_PUBLIC_KEY)] = {0x04, 0x35, 0x87, 0xCF};
     }
 };

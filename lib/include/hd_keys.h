@@ -40,7 +40,7 @@ public:
      * Generate the key corresponding to the specified index at the "external child"
      * level of the path for the account.
      */
-    [[nodiscard]] std::optional<CKey> Derive(uint32_t addrIndex) const;
+    [[nodiscard]] std::optional<CExtKey> Derive(uint32_t addrIndex) const;
 
     friend bool operator==(const AccountKey& a, const AccountKey& b)
     {

@@ -32,6 +32,9 @@ public:
     [[nodiscard]] string SetupNewWallet(NetworkMode mode, const SecureString& password);
     void Lock();
     void Unlock(const SecureString& strPassphrase);
+    bool IsLocked() const {return m_vMasterKey.empty();}
+
+    [[nodiscard]] string ExportWallet();
 
     [[nodiscard]] string MakeNewAddress();
     [[nodiscard]] string GetAddress(uint32_t addrIndex);
@@ -48,6 +51,11 @@ public:
         }
         return addresses;
     }
+
+    [[nodiscard]] string GetWalletPubKey();    // returns base58 encoded Public Key, w/o prefix and checksum
+    [[nodiscard]] string SignWithWalletKey(string message);
+    [[nodiscard]] string GetPubKeyAt(uint32_t addrIndex);   // returns base58 encoded Public Key, w/o prefix and checksum
+    [[nodiscard]] string SignWithKeyAt(uint32_t addrIndex, string message);
 
     [[nodiscard]] NetworkMode GetNetworkMode() const { return m_NetworkMode; }
 
@@ -78,10 +86,14 @@ private:
     bool setMasterKey(const SecureString& strPassphrase, string& error = (string &) "") noexcept;
     bool setEncryptedMnemonicSeed(const MnemonicSeed& seed, string& error = (string &) "") noexcept;
     [[nodiscard]] optional<MnemonicSeed> getDecryptedMnemonicSeed() const noexcept;
+    [[nodiscard]] optional<CExtKey> getExtKey(uint32_t addrIndex) const;
 
     [[nodiscard]] string getAddressByIndex(uint32_t addrIndex, bool bCreateNew = false);
     [[nodiscard]] optional<AccountKey> getAccountKey() const noexcept;
 
     void setNetworkParams(NetworkMode mode);
-    static string encodePublicKey(const CKeyID& id, const CChainParams* network) noexcept;
+
+    static string encodeAddress(const CKeyID& id, const CChainParams* network) noexcept;
+    static string encodeExtPubKey(const CExtPubKey& key, const CChainParams* network) noexcept;
+    static CExtPubKey decodeExtPubKey(const string& str, const CChainParams* network) noexcept;
 };

@@ -87,6 +87,30 @@ string Pastel::GetAddresses() {
     });
 }
 
+string Pastel::GetWalletPubKey() {
+    return wrapResponse([&]() {
+        return m_HDWallet.GetWalletPubKey();
+    });
+}
+
+string Pastel::SignWithWalletKey(string message) {
+    return wrapResponse([&]() {
+        return m_HDWallet.SignWithWalletKey(message);
+    });
+}
+
+string Pastel::GetPubKeyAt(uint32_t addrIndex) {
+    return wrapResponse([&]() {
+        return m_HDWallet.GetPubKeyAt(addrIndex);
+    });
+}
+
+string Pastel::SignWithKeyAt(uint32_t addrIndex, string message) {
+    return wrapResponse([&]() {
+        return m_HDWallet.SignWithKeyAt(addrIndex, message);
+    });
+}
+
 
 #ifdef __EMSCRIPTEN__
 EMSCRIPTEN_BINDINGS(PastelModule) {
@@ -107,6 +131,10 @@ EMSCRIPTEN_BINDINGS(PastelModule) {
         .function("GetAddress", &Pastel::GetAddress)
         .function("GetAddresses", &Pastel::GetAddresses)
         .function("GetAddressesCount", &Pastel::GetAddressesCount)
+        .function("GetWalletPubKey", &Pastel::GetWalletPubKey)
+        .function("SignWithWalletKey", &Pastel::SignWithWalletKey)
+        .function("GetPubKeyAt", &Pastel::GetPubKeyAt)
+        .function("SignWithKeyAt", &Pastel::SignWithKeyAt)
         ;
     // Add more bindings as needed
 }

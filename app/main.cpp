@@ -40,6 +40,19 @@ int main() {
     std::cout << "Same Address 4: " << lib2.GetAddress(4) << std::endl;
     std::cout << "Same Address 5: " << lib2.GetAddress(5) << std::endl;
     std::cout << lib2.GetAddressesCount() << std::endl;
+    try {
+        std::cout << "New Address  6: " << lib2.MakeNewAddress() << std::endl;
+    } catch (const std::exception& e) {
+        std::cout << e.what() << std::endl;
+    }
+
+    lib2.UnlockWallet("password");
+    std::cout << lib2.GetWalletPubKey() << std::endl;
+    std::cout << lib2.SignWithWalletKey("message") << std::endl;
+    std::cout << lib2.GetPubKeyAt(3) << std::endl;
+    std::cout << lib2.SignWithKeyAt(3, "message") << std::endl;
+    std::cout << lib2.GetPubKeyAt(0x80000003) << std::endl;
+    std::cout << lib2.SignWithKeyAt(0x80000003, "message") << std::endl;
 
     return 0;
 }

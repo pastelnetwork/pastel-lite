@@ -9,9 +9,9 @@
 #include "pubkey.h"
 #include "key.h"
 #include "crypto/aes.h"
+#include "hash.h"
 
-string CHDWallet::SetupNewWallet(NetworkMode mode, const SecureString& password)
-{
+string CHDWallet::SetupNewWallet(NetworkMode mode, const SecureString &password) {
     m_NetworkMode = mode;
     setNetworkParams(mode);
 
@@ -40,14 +40,13 @@ string CHDWallet::SetupNewWallet(NetworkMode mode, const SecureString& password)
     return seed.GetMnemonic();
 }
 
-bool CHDWallet::setMasterKey(const SecureString& strPassphrase, string& error) noexcept
-{
+bool CHDWallet::setMasterKey(const SecureString &strPassphrase, string &error) noexcept {
     try {
         if (strPassphrase.empty()) {
             error = "Passphrase is empty";
             return false;
         }
-        if (m_encryptedMasterKey.vchCryptedKey.size() == WALLET_CRYPTO_KEY_SIZE+AES_BLOCKSIZE) {// already set
+        if (m_encryptedMasterKey.vchCryptedKey.size() == WALLET_CRYPTO_KEY_SIZE + AES_BLOCKSIZE) {// already set
             error = "Master key already set";
             return false;
         }
@@ -68,18 +67,21 @@ bool CHDWallet::setMasterKey(const SecureString& strPassphrase, string& error) n
             error = "Failed to set key from passphrase";
             return false;
         }
-        kMasterKey.nDeriveIterations = 2500000 / ((double)(GetTimeMillis() - nStartTime));
+        kMasterKey.nDeriveIterations = 2500000 / ((double) (GetTimeMillis() - nStartTime));
 
         nStartTime = GetTimeMillis();
-        if (!crypter.SetKeyFromPassphrase(strPassphrase, kMasterKey.vchSalt, kMasterKey.nDeriveIterations, kMasterKey.nDerivationMethod)) {
+        if (!crypter.SetKeyFromPassphrase(strPassphrase, kMasterKey.vchSalt, kMasterKey.nDeriveIterations,
+                                          kMasterKey.nDerivationMethod)) {
             error = "Failed to set key from passphrase";
             return false;
         }
-        kMasterKey.nDeriveIterations = (kMasterKey.nDeriveIterations + kMasterKey.nDeriveIterations * 100 / ((double)(GetTimeMillis() - nStartTime))) / 2;
+        kMasterKey.nDeriveIterations = (kMasterKey.nDeriveIterations + kMasterKey.nDeriveIterations * 100 /
+                                                                       ((double) (GetTimeMillis() - nStartTime))) / 2;
         if (kMasterKey.nDeriveIterations < 25000)
             kMasterKey.nDeriveIterations = 25000;
 
-        if (!crypter.SetKeyFromPassphrase(strPassphrase, kMasterKey.vchSalt, kMasterKey.nDeriveIterations, kMasterKey.nDerivationMethod)) {
+        if (!crypter.SetKeyFromPassphrase(strPassphrase, kMasterKey.vchSalt, kMasterKey.nDeriveIterations,
+                                          kMasterKey.nDerivationMethod)) {
             error = "Failed to set key from passphrase";
             return false;
         }
@@ -88,15 +90,14 @@ bool CHDWallet::setMasterKey(const SecureString& strPassphrase, string& error) n
             return false;
         }
         m_encryptedMasterKey = kMasterKey;
-    } catch (const exception& e) {
+    } catch (const exception &e) {
         error = e.what();
         return false;
     }
     return true;
 }
 
-bool CHDWallet::setEncryptedMnemonicSeed(const MnemonicSeed& seed, string& error) noexcept
-{
+bool CHDWallet::setEncryptedMnemonicSeed(const MnemonicSeed &seed, string &error) noexcept {
     try {
         // Use seed's fingerprint as IV
         auto seedFp = seed.Fingerprint();
@@ -109,38 +110,36 @@ bool CHDWallet::setEncryptedMnemonicSeed(const MnemonicSeed& seed, string& error
             return false;
         }
         m_encryptedMnemonicSeed = make_pair(seedFp, vchCryptedSecret);
-    } catch (const exception& e) {
+    } catch (const exception &e) {
         error = e.what();
         return false;
     }
     return true;
 }
 
-void CHDWallet::Lock()
-{
+void CHDWallet::Lock() {
     memory_cleanse(&m_vMasterKey[0], m_vMasterKey.size());
     m_vMasterKey.clear();
 }
 
 
-void CHDWallet::Unlock(const SecureString& strPassphrase)
-{
+void CHDWallet::Unlock(const SecureString &strPassphrase) {
     if (strPassphrase.empty())
         throw runtime_error("Passphrase is empty");
-    if (m_encryptedMasterKey.vchCryptedKey.size() != WALLET_CRYPTO_KEY_SIZE+AES_BLOCKSIZE) // doesn't exist
+    if (m_encryptedMasterKey.vchCryptedKey.size() != WALLET_CRYPTO_KEY_SIZE + AES_BLOCKSIZE) // doesn't exist
         throw runtime_error("Master key doesn't exist");
     if (m_vMasterKey.size() == WALLET_CRYPTO_KEY_SIZE)  // already unlocked
         return;
 
     CCrypter crypter;
-    if (!crypter.SetKeyFromPassphrase(strPassphrase, m_encryptedMasterKey.vchSalt, m_encryptedMasterKey.nDeriveIterations, m_encryptedMasterKey.nDerivationMethod))
+    if (!crypter.SetKeyFromPassphrase(strPassphrase, m_encryptedMasterKey.vchSalt,
+                                      m_encryptedMasterKey.nDeriveIterations, m_encryptedMasterKey.nDerivationMethod))
         throw runtime_error("Failed to set key from passphrase");
     if (!crypter.Decrypt(m_encryptedMasterKey.vchCryptedKey, m_vMasterKey))
         throw runtime_error("Failed to decrypt master key");
 }
 
-[[nodiscard]] optional<MnemonicSeed> CHDWallet::getDecryptedMnemonicSeed() const noexcept
-{
+[[nodiscard]] optional<MnemonicSeed> CHDWallet::getDecryptedMnemonicSeed() const noexcept {
     if (m_encryptedMnemonicSeed.second.empty()) {
         return nullopt;
     }
@@ -148,7 +147,8 @@ void CHDWallet::Unlock(const SecureString& strPassphrase)
     CKeyingMaterial vchSecret;
 
     // Use seed's fingerprint as IV
-    if (CCrypter::DecryptSecret(m_vMasterKey, m_encryptedMnemonicSeed.second, m_encryptedMnemonicSeed.first, vchSecret)) {
+    if (CCrypter::DecryptSecret(m_vMasterKey, m_encryptedMnemonicSeed.second, m_encryptedMnemonicSeed.first,
+                                vchSecret)) {
         auto seed = MnemonicSeed::Read(vchSecret);
         if (seed.Fingerprint() == m_encryptedMnemonicSeed.first) {
             return seed;
@@ -180,15 +180,14 @@ void CHDWallet::Unlock(const SecureString& strPassphrase)
     // Get and encode public key
     const auto pubKey = key->GetPubKey();
     const auto keyID = pubKey.GetID();
-    auto strPubKey = encodePublicKey(keyID, m_NetworkParams);
+    auto strPubKey = encodeAddress(keyID, m_NetworkParams);
     m_addressIndexMap[strPubKey] = addrIndex;
     m_indexAddressMap[addrIndex] = strPubKey;
     return strPubKey;
 }
 
 
-[[nodiscard]] string CHDWallet::GetNewLegacyAddress()
-{
+[[nodiscard]] string CHDWallet::GetNewLegacyAddress() {
     CKey secret;
     secret.MakeNewKey(true);
 
@@ -199,33 +198,72 @@ void CHDWallet::Unlock(const SecureString& strPassphrase)
 
     // Get and encode public key
     const CKeyID keyID = newKey.GetID();
-    auto strPubKey = encodePublicKey(keyID, m_NetworkParams);
+    auto strPubKey = encodeAddress(keyID, m_NetworkParams);
     m_addressMapNonHD[strPubKey] = secret;
     return strPubKey;
 }
 
-optional<CKey> CHDWallet::GetAddressKey(const string& address)
-{
+optional<CKey> CHDWallet::GetAddressKey(const string &address) {
     auto addrIndex = m_addressIndexMap[address];
     return GetAddressKey(addrIndex);
 }
 
-optional<CKey> CHDWallet::GetAddressKey(uint32_t addrIndex) const
-{
+optional<CKey> CHDWallet::GetAddressKey(uint32_t addrIndex) const {
+    auto extKey = getExtKey(addrIndex);
+    auto key = extKey.value().key;
+    return key;
+}
+
+[[nodiscard]] string CHDWallet::GetWalletPubKey() {
+    return GetPubKeyAt(m_NetworkParams->walletIDIndex);
+}
+
+[[nodiscard]] string CHDWallet::SignWithWalletKey(string message) {
+    return SignWithKeyAt(m_NetworkParams->walletIDIndex, message);
+}
+
+[[nodiscard]] string CHDWallet::GetPubKeyAt(uint32_t addrIndex) {
+    auto key = GetAddressKey(addrIndex);
+    if (!key.has_value()) {
+        throw runtime_error("Failed to get key");
+    }
+    auto pubKey = key->GetPubKey();
+    return EncodeBase58(pubKey.begin(), pubKey.end());
+}
+
+[[nodiscard]] string CHDWallet::SignWithKeyAt(uint32_t addrIndex, string message) {
+    auto key = GetAddressKey(addrIndex);
+    if (!key.has_value()) {
+        throw runtime_error("Failed to get account key");
+    }
+
+    uint256 hash;
+    CHash256().Write((unsigned char *) message.data(), message.size()).Finalize(hash.begin());
+    v_uint8 vchSig;
+    if (key.value().Sign(hash, vchSig)) {
+        return EncodeBase58(vchSig);
+    }
+    return "";
+}
+
+[[nodiscard]] optional<CExtKey> CHDWallet::getExtKey(uint32_t addrIndex) const {
+    if (IsLocked()) {
+        throw runtime_error("Wallet is locked");
+    }
+
     auto accountKey = getAccountKey();
     if (!accountKey.has_value()) {
         throw runtime_error("Failed to get account key");
     }
-    auto key = accountKey.value().Derive(addrIndex);
-    if (!key.has_value()) {
+    auto extKey = accountKey.value().Derive(addrIndex);
+    accountKey.value().Clear();
+    if (!extKey.has_value()) {
         throw runtime_error("Failed to get new address");
     }
-    accountKey.value().Clear();
-    return key;
+    return extKey;
 }
 
-[[nodiscard]] optional<AccountKey> CHDWallet::getAccountKey() const noexcept
-{
+[[nodiscard]] optional<AccountKey> CHDWallet::getAccountKey() const noexcept {
     auto seed = getDecryptedMnemonicSeed();
     if (!seed.has_value()) {
         return nullopt;
@@ -233,8 +271,7 @@ optional<CKey> CHDWallet::GetAddressKey(uint32_t addrIndex) const
     return AccountKey::MakeAccount(seed.value(), m_NetworkParams->bip44CoinType, 0);
 }
 
-void CHDWallet::setNetworkParams(NetworkMode mode)
-{
+void CHDWallet::setNetworkParams(NetworkMode mode) {
     switch (mode) {
         case NetworkMode::MAINNET:
             m_NetworkParams = new CMainnetParams();
@@ -250,9 +287,28 @@ void CHDWallet::setNetworkParams(NetworkMode mode)
     }
 }
 
-string CHDWallet::encodePublicKey(const CKeyID& id, const CChainParams* network) noexcept
-{
+string CHDWallet::encodeAddress(const CKeyID &id, const CChainParams *network) noexcept {
     v_uint8 pubKey = network->Base58Prefix(CChainParams::Base58Type::PUBKEY_ADDRESS);
     pubKey.insert(pubKey.end(), id.begin(), id.end());
     return EncodeBase58Check(pubKey);
+}
+
+string CHDWallet::encodeExtPubKey(const CExtPubKey &key, const CChainParams *network) noexcept {
+    v_uint8 data = network->Base58Prefix(CChainParams::Base58Type::EXT_PUBLIC_KEY);
+    const size_t size = data.size();
+    data.resize(size + BIP32_EXTKEY_SIZE);
+    key.Encode(data.data() + size);
+    string ret = EncodeBase58Check(data);
+    return ret;
+}
+
+CExtPubKey CHDWallet::decodeExtPubKey(const string &str, const CChainParams *network) noexcept {
+    CExtPubKey key;
+    v_uint8 data;
+    if (DecodeBase58Check(str, data)) {
+        const auto &prefix = network->Base58Prefix(CChainParams::Base58Type::EXT_PUBLIC_KEY);
+        if (data.size() == BIP32_EXTKEY_SIZE + prefix.size() && equal(prefix.begin(), prefix.end(), data.begin()))
+            key.Decode(data.data() + prefix.size());
+    }
+    return key;
 }
