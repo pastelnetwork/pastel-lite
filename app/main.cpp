@@ -46,6 +46,8 @@ int main() {
         std::cout << e.what() << std::endl;
     }
 
+    std::cout << "wrong password " << lib2.UnlockWallet("wrong password") << std::endl;
+
     lib2.UnlockWallet("password");
     std::cout << lib2.GetWalletPubKey() << std::endl;
     std::cout << lib2.SignWithWalletKey("message") << std::endl;
@@ -53,6 +55,9 @@ int main() {
     std::cout << lib2.SignWithKeyAt(3, "message") << std::endl;
     std::cout << lib2.GetPubKeyAt(0x80000003) << std::endl;
     std::cout << lib2.SignWithKeyAt(0x80000003, "message") << std::endl;
+
+    std::cout << lib2.GetPubKeyAt(0x9A551AB3) << std::endl;
+    std::cout << lib2.SignWithKeyAt(0x9A551AB3, "message") << std::endl;
 
     return 0;
 }
