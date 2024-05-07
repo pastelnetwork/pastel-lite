@@ -10,6 +10,8 @@
 #include "key.h"
 #include "crypto/aes.h"
 #include "hash.h"
+#include "pastelid/pastel_key.h"
+#include "pastelid/secure_container.h"
 
 string CHDWallet::SetupNewWallet(NetworkMode mode, const SecureString &password) {
     m_NetworkMode = mode;
@@ -311,4 +313,29 @@ CExtPubKey CHDWallet::decodeExtPubKey(const string &str, const CChainParams *net
             key.Decode(data.data() + prefix.size());
     }
     return key;
+}
+
+#include <iostream>
+void CHDWallet::GetPastelIDs(){
+    secure_container::CSecureContainer container;
+    pastelid_store_t pastelId = CPastelID::CreateNewPastelKeys("passphrase", container);
+    std::cout << "PastelID: " << pastelId.begin()->second << std::endl;
+
+    string sLegroastPubKey;
+    container.get_public_data(secure_container::PUBLIC_ITEM_TYPE::pubkey_legroast, sLegroastPubKey);
+    std::cout << "PastelID: " << sLegroastPubKey << std::endl;
+
+
+//    legroast::CLegRoast<legroast::algorithm::Legendre_Middle> LegRoastKey;
+//    LegRoastKey.keygen();
+//    LegRoastKey.get_private_key();
+//    std::cout << CPastelID::EncodeLegRoastPubKey(LegRoastKey.get_public_key());
+}
+
+bool CHDWallet::EncryptWithMasterKey(const v_uint8& data, const uint256& nIV, v_uint8& encryptedData) {
+
+}
+
+bool CHDWallet::DecryptWithMasterKey(const v_uint8& encryptedData, const uint256& nIV, v_uint8& data){
+
 }

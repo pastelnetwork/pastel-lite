@@ -16,11 +16,14 @@ class CHDWallet
     // Can serialize
     NetworkMode m_NetworkMode;
 
-    pair<uint256, vector<unsigned char>> m_encryptedMnemonicSeed; // [fingerprint, seed encrypted with m_vMasterKey]
+    pair<uint256, v_uint8> m_encryptedMnemonicSeed; // [fingerprint, seed encrypted with m_vMasterKey]
     CMasterKey m_encryptedMasterKey;    // m_vMasterKey encrypted with key derived from passphrase, also keeps salt and derivation method inside
 
     map<string, uint32_t> m_addressIndexMap;  // to access address index by address
     map<string, CKey> m_addressMapNonHD;      // to access exported NON HD private keys by address. TODO: encryption/decryption for serialization/deserialization
+
+    map<string, uint32_t> m_PastelIDs;          // only ed448 public part
+    map<string, v_uint8> m_externalPastelIDs;   // secure part is encrypted
 
     // Do not serialize
     CKeyingMaterial m_vMasterKey;   // random key
@@ -32,9 +35,10 @@ public:
     [[nodiscard]] string SetupNewWallet(NetworkMode mode, const SecureString& password);
     void Lock();
     void Unlock(const SecureString& strPassphrase);
-    bool IsLocked() const {return m_vMasterKey.empty();}
+    [[nodiscard]] bool IsLocked() const {return m_vMasterKey.empty();}
 
-    [[nodiscard]] string ExportWallet();
+    bool EncryptWithMasterKey(const v_uint8& data, const uint256& nIV, v_uint8& encryptedData) const;
+    bool DecryptWithMasterKey(const v_uint8& encryptedData, const uint256& nIV, v_uint8& data) const;
 
     [[nodiscard]] string MakeNewAddress();
     [[nodiscard]] string GetAddress(uint32_t addrIndex);
@@ -59,6 +63,8 @@ public:
 
     [[nodiscard]] NetworkMode GetNetworkMode() const { return m_NetworkMode; }
 
+    void GetPastelIDs();
+
     ADD_SERIALIZE_METHODS;
 
     template <typename Stream, typename Operation>
@@ -80,6 +86,8 @@ public:
                 m_indexAddressMap[pair.second] = pair.first;
             }
         }
+        READWRITE(m_PastelIDs);
+        READWRITE(m_externalPastelIDs);
     }
 
 private:

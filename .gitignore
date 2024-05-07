@@ -4,3 +4,7 @@ cmake-build-debug/
 /build-native-debug/
 /build-native-release/
 /vcpkg_installed/
+/libpastel.a
+/libpastel_wasm.js
+/libpastel_wasm.wasm
+/libpastel_wasm.wasm.map

@@ -3,10 +3,10 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or https://www.opensource.org/licenses/mit-license.php.
 
-#include <nlohmann/json.hpp>
 #include <string>
 #include <exception>
 #include <type_traits>
+#include "json/json.hpp"
 
 // Base template declaration
 template<typename T>
