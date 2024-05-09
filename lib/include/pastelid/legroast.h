@@ -13,17 +13,16 @@
 #include <cstdint>
 #include <memory>
 #include <array>
-
-#include "botan/auto_rng.h"
-#include "botan/hash.h"
-
-//#include <utils/tinyformat.h>
-#include <fmt/core.h>
-
 #ifdef _MSC_VER
 #include <uint128.h>
 //#include <__msvc_int128.hpp>
 #endif // _MSC_VER
+
+#include <fmt/core.h>
+
+#include "botan/auto_rng.h"
+#include "botan/hash.h"
+
 #include <vector_types.h>
 
 #ifndef _MSC_VER
@@ -53,8 +52,7 @@ enum class algorithm : uint32_t
 };
 
 constexpr size_t PRIME_BYTES = 16;
-//constexpr size_t SEED_BYTES = 16;
-constexpr size_t SEED_BYTES = 32;
+constexpr size_t SEED_BYTES = 16;
 constexpr size_t HASH_BYTES = 32;
 constexpr size_t PK_DEPTH = 15;
 
@@ -226,8 +224,6 @@ public:
             }
             std::copy(seed.begin(), seed.end(), m_sk);
         }
-
-        rng.randomize(m_sk, SEED_BYTES);
 
         uint128_t key;
         sample_mod_p(m_sk, &key);

@@ -7,13 +7,12 @@
 #include "support/cleanse.h"
 #include "base58.h"
 #include "hash.h"
-#include "pastelid/ed.h"
 #include "pastelid/common.h"
 #include "pastelid/pastel_key.h"
 
 using namespace std;
 using namespace legroast;
-using namespace ed_crypto;
+using namespace crypto_helpers;
 using namespace secure_container;
 
 constexpr size_t SEEDBYTES = 16;
@@ -33,18 +32,24 @@ pastelid_store_t CPastelID::CreateNewPastelKeysFile(const string &sDirPath, Secu
     pastelid_store_t resultMap;
     try {
         // Pastel ID private/public keys (EdDSA448)
-        const key_dsa448 key = key_dsa448::generate_key();
+        Botan::AutoSeeded_RNG rng;
+        v_uint8 seed;
+        seed.resize(ED448_LEN);
+        rng.randomize(seed);
+        auto key = Botan::Ed448_PrivateKey(std::span(seed));
+
         // encode public key with Pastel ID prefix (A1DE), base58 encode + checksum
-        string sPastelID = EncodePastelID(key.public_key_raw());
+        string sPastelID = EncodePastelID(key.public_key_bits());
         // LegRoast signing keys
         CLegRoast<algorithm::Legendre_Middle> LegRoastKey;
         // generate LegRoast private/public key pair
         LegRoastKey.keygen();
         string sEncodedLegRoastPubKey = EncodeLegRoastPubKey(LegRoastKey.get_public_key());
 
+        auto privKey = key.private_key_bits();
         // write secure container with both private keys
         CreatePastelKeysFile(sDirPath, std::move(passPhrase), sPastelID, sEncodedLegRoastPubKey,
-                             key.private_key_raw(), LegRoastKey.get_private_key());
+                             {privKey.begin(), privKey.end()}, LegRoastKey.get_private_key());
 
         // populate storage object with encoded PastelID and LegRoast public keys
         resultMap.emplace(std::move(sPastelID), std::move(sEncodedLegRoastPubKey));

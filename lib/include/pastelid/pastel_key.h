@@ -8,8 +8,8 @@
 #include "serialize.h"
 #include "vector_types.h"
 #include "map_types.h"
-#include "pastelid/legroast.h"
 #include "uint256.h"
+#include "pastelid/legroast.h"
 #include "pastelid/secure_container.h"
 
 using namespace std;

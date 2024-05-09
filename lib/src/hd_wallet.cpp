@@ -15,10 +15,10 @@
 #include "hash.h"
 #include "pastelid/pastel_key.h"
 #include "pastelid/legroast.h"
-#include "pastelid/ed.h"
+#include "pastelid/common.h"
 
 using namespace legroast;
-using namespace ed_crypto;
+using namespace crypto_helpers;
 
 string CHDWallet::SetupNewWallet(NetworkMode mode, const SecureString &password) {
     m_NetworkMode = mode;
@@ -364,12 +364,8 @@ v_uint8 CHDWallet::makePastelIDSeed(uint32_t addrIndex, PastelIDType type) {
 [[nodiscard]] string CHDWallet::MakeNewPastelID() {
     try {
         auto newIndex = m_pastelIDIndexMap.size();
-        const key_dsa448 key = key_dsa448::generate_key(makePastelIDSeed(newIndex, PastelIDType::PASTELID));
-        auto pastelID = CPastelID::EncodePastelID(key.public_key_raw());
-
-        CLegRoast<algorithm::Legendre_Middle> legRoastKey;
-        legRoastKey.keygen(makePastelIDSeed(newIndex, PastelIDType::LEGROAST));
-        auto legRoastPubKey = CPastelID::EncodeLegRoastPubKey(legRoastKey.get_public_key());
+        auto pastelID = ed448_pubkey_encoded(makePastelIDSeed(newIndex, PastelIDType::PASTELID));
+        auto legRoastPubKey = legroast_pubkey_encoded(makePastelIDSeed(newIndex, PastelIDType::LEGROAST));
 
         m_pastelIDIndexMap[pastelID] = newIndex;
         m_indexPastelIDMap[newIndex] = pastelID;
@@ -412,12 +408,9 @@ string CHDWallet::GetPastelID(const string &pastelID, PastelIDType type) {
 [[nodiscard]] v_uint8 CHDWallet::GetPastelIDKey(uint32_t addrIndex, PastelIDType type) {
     if (m_indexPastelIDMap.contains(addrIndex)) {
         if (type == PastelIDType::PASTELID) {
-            const key_dsa448 key = key_dsa448::generate_key(makePastelIDSeed(addrIndex, PastelIDType::PASTELID));
-            return key.private_key_raw();
+            return ed448_privkey(makePastelIDSeed(addrIndex, PastelIDType::PASTELID));
         } else if (type == PastelIDType::LEGROAST) {
-            CLegRoast<algorithm::Legendre_Middle> LegRoastKey;
-            LegRoastKey.keygen(makePastelIDSeed(addrIndex, PastelIDType::LEGROAST));
-            return LegRoastKey.get_private_key();
+            return legroast_privkey(makePastelIDSeed(addrIndex, PastelIDType::LEGROAST));
         } else {
             throw runtime_error("Invalid PastelID type");
         }
@@ -462,59 +455,20 @@ string CHDWallet::GetPastelID(const string &pastelID, PastelIDType type) {
     auto addrIndex = m_pastelIDIndexMap[pastelID];
 
     if (type == PastelIDType::PASTELID) {
-        const auto key = key_dsa448::generate_key(makePastelIDSeed(addrIndex, PastelIDType::PASTELID));
-        auto sigBuf = ed_crypto::crypto_sign::sign(message, key);
-        if (fBase64) {
-            return Botan::base64_encode(sigBuf);
-        } else {
-            return {sigBuf.begin(), sigBuf.end()};
-        }
+        return ed448_sign(makePastelIDSeed(addrIndex, PastelIDType::PASTELID), message, fBase64? encoding::base64 : encoding::hex);
     } else if (type == PastelIDType::LEGROAST) {
-        CLegRoast<algorithm::Legendre_Middle> LegRoastKey;
-        LegRoastKey.keygen(makePastelIDSeed(addrIndex, PastelIDType::LEGROAST));
-        string error;
-        if (!LegRoastKey.sign(error, reinterpret_cast<const unsigned char*>(message.data()), message.length()))
-            throw runtime_error(fmt::format("Failed to sign text message with the LegRoast private key. {}", error));
-        auto sigBuf = LegRoastKey.get_signature();
-        if (fBase64)
-            return Botan::base64_encode(reinterpret_cast<const unsigned char*>(sigBuf.data()), sigBuf.length());
-        return {sigBuf.begin(), sigBuf.end()};
+        return legroast_sign(makePastelIDSeed(addrIndex, PastelIDType::LEGROAST), message, fBase64? encoding::base64 : encoding::hex);
     } else {
         throw runtime_error("Invalid PastelID type");
     }
-
 }
+
 [[nodiscard]] bool CHDWallet::VerifyWithPastelID(const string& pastelID, const string& message, const string& signature, bool fBase64){
-    v_uint8 vRawPubKey;
-    if (!CPastelID::DecodePastelID(pastelID, vRawPubKey))
-        throw runtime_error("Invalid PastelID");
-
-    auto key = ed_crypto::key_dsa448::create_from_raw_public(vRawPubKey);
-    if (fBase64)
-        return ed_crypto::crypto_sign::verify_base64(message, signature, key);
-    else
-        return ed_crypto::crypto_sign::verify(message, signature, key);
-
+    return ed448_verify(pastelID, message, signature, fBase64? encoding::base64 : encoding::hex);
 }
+
 [[nodiscard]] bool CHDWallet::VerifyWithLegRoast(const string& lrPubKey, const string& message, const string& signature, bool fBase64){
-    v_uint8 vLRPubKey;
-    if (!CPastelID::DecodeLegRoastPubKey(lrPubKey, vLRPubKey))
-        throw runtime_error("Invalid LegRoast Public key");
-
-    string error;
-    CLegRoast<algorithm::Legendre_Middle> LegRoast;
-    if (!LegRoast.set_public_key(error, vLRPubKey.data(), vLRPubKey.size()))
-        throw runtime_error(error);
-
-    if (fBase64) {
-        auto b64Sign = Botan::base64_decode(signature);
-        if (!LegRoast.set_signature(error, {b64Sign.begin(), b64Sign.end()}))
-            throw runtime_error(error);
-    } else {
-        if (!LegRoast.set_signature(error, reinterpret_cast<const unsigned char*>(signature.data()), signature.size()))
-            throw runtime_error(error);
-    }
-    return LegRoast.verify(error, reinterpret_cast<const unsigned char*>(message.data()), message.size());
+    return legroast_verify(lrPubKey, message, signature, fBase64? encoding::base64 : encoding::hex);
 }
 
 [[nodiscard]] bool CHDWallet::AddExternalPastelID() {

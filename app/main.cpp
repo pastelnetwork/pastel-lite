@@ -8,12 +8,13 @@ int main() {
     std::cout << "==== Create wallet ====" << std::endl;
     auto mnem = lib.CreateNewWallet(NetworkMode::MAINNET, "password");
     std::cout << "Mnemonic: " << mnem << std::endl;
-//    std::cout << "==== Addresses ====" << std::endl;
-//    std::cout << "Create new Address 0: " << lib.MakeNewAddress() << std::endl;
-//    std::cout << "Create new Address 1: " << lib.MakeNewAddress() << std::endl;
-//    std::cout << "Get existing Address 0: " << lib.GetAddress(0) << std::endl;
-//    std::cout << "Get existing Address 1: " << lib.GetAddress(1) << std::endl;
-//    std::cout << "Get non-created Address 2: " << lib.GetAddress(2) << std::endl;
+
+      std::cout << "==== Addresses ====" << std::endl;
+    std::cout << "Create new Address 0: " << lib.MakeNewAddress() << std::endl;
+    std::cout << "Create new Address 1: " << lib.MakeNewAddress() << std::endl;
+    std::cout << "Get existing Address 0: " << lib.GetAddress(0) << std::endl;
+    std::cout << "Get existing Address 1: " << lib.GetAddress(1) << std::endl;
+    std::cout << "Get non-created Address 2: " << lib.GetAddress(2) << std::endl;
     std::cout << "==== PastelIDs ====" << std::endl;
     std::cout << "Create new PastelID 0: " << lib.MakeNewPastelID() << std::endl;
     std::cout << "Create new PastelID 1: " << lib.MakeNewPastelID() << std::endl;
@@ -28,14 +29,25 @@ int main() {
     std::cout << "==== Sign/Verify ====" << std::endl;
     auto pastelID = nlohmann::json::parse(lib.GetPastelID(1)).at("data").get<std::string>();
     std::cout << "Sign with PastelID 1: " << pastelID << std::endl;
+
     auto sigRes1 = lib.SignWithPastelID(pastelID, "message", PastelIDType::PASTELID, true);
     auto signature1 = nlohmann::json::parse(sigRes1).at("data").get<std::string>();
-    std::cout << "PastelID signature" << signature1 << std::endl;
+    std::cout << "PastelID signature: " << signature1 << std::endl;
+
     auto sigRes2 = lib.SignWithPastelID(pastelID, "message", PastelIDType::LEGROAST, true);
     auto signature2 = nlohmann::json::parse(sigRes2).at("data").get<std::string>();
-    std::cout << "LegRoast signature" << signature2 << std::endl;
+    std::cout << "LegRoast signature: " << signature2 << std::endl;
+
     std::cout << "Verify with PastelID: " << lib.VerifyWithPastelID(pastelID, "message", signature1, true) << std::endl;
-    std::cout << "Verify with LegRoast: " << lib.VerifyWithLegRoast(pastelID, "message", signature2, true) << std::endl;
+
+    auto legRoast = nlohmann::json::parse(lib.GetPastelID(pastelID, PastelIDType::LEGROAST)).at("data").get<std::string>();
+    std::cout << "Get LegRoast 1: " << legRoast << std::endl;
+    std::cout << "Verify with LegRoast: " << lib.VerifyWithLegRoast(legRoast, "message", signature2, true) << std::endl;
+
+    std::cout << "Verify with External PastelID: " << lib.VerifyWithPastelID("jXXQ5MdtkCMjftmgmHC2nXGwqiqh2m14kbnVdwcjaeKD7nmE3tFiNnHrwEkV2ZPKejUmvkQzfMFwizkjKVy9nG", "message",
+                                                                             "3LdXRMIHJ3t9n3Fkv6Wlnq3+fK0HcNJXJnWYgWsGjoHGT1nGGfEnhiUnrOkLOko2WkZVuFEBIt8ASApzI92ThOdJEgGivBnEpXZGTJZj8thKwcqxvaH5A3Pjow+z96YNl/WeUTYxAYqVEzgeDBT+EQsA",
+                                                                             true) << std::endl;
+
 
     std::cout << "==== Export PastelID 1 ====" << std::endl;
     std::cout << lib.ExportPastelIDKeys(pastelID, "password", ".") << std::endl;
@@ -94,20 +106,20 @@ int main() {
     std::cout << "Get non-existing LegRoast 5: " << lib2.GetPastelID(5, PastelIDType::LEGROAST) << std::endl;
     std::cout << std::endl;
     std::cout << "==== Unlock wallet with wrong password ====" << std::endl;
-//    std::cout << "wrong password " << lib2.UnlockWallet("wrong password") << std::endl;
-//    std::cout << std::endl;
-//    std::cout << "==== Unlock wallet ====" << std::endl;
-//    lib2.UnlockWallet("password");
-//    std::cout << "==== Account management ====" << std::endl;
-//    std::cout << lib2.GetWalletPubKey() << std::endl;
-//    std::cout << lib2.SignWithWalletKey("message") << std::endl;
-//    std::cout << lib2.GetPubKeyAt(3) << std::endl;
-//    std::cout << lib2.SignWithKeyAt(3, "message") << std::endl;
-//    std::cout << lib2.GetPubKeyAt(0x80000003) << std::endl;
-//    std::cout << lib2.SignWithKeyAt(0x80000003, "message") << std::endl;
-//    std::cout << std::endl;
-//    std::cout << lib2.GetPubKeyAt(0x9A551AB3) << std::endl;
-//    std::cout << lib2.SignWithKeyAt(0x9A551AB3, "message") << std::endl;
+    std::cout << "wrong password " << lib2.UnlockWallet("wrong password") << std::endl;
+    std::cout << std::endl;
+    std::cout << "==== Unlock wallet ====" << std::endl;
+    lib2.UnlockWallet("password");
+    std::cout << "==== Account management ====" << std::endl;
+    std::cout << lib2.GetWalletPubKey() << std::endl;
+    std::cout << lib2.SignWithWalletKey("message") << std::endl;
+    std::cout << lib2.GetPubKeyAt(3) << std::endl;
+    std::cout << lib2.SignWithKeyAt(3, "message") << std::endl;
+    std::cout << lib2.GetPubKeyAt(0x80000003) << std::endl;
+    std::cout << lib2.SignWithKeyAt(0x80000003, "message") << std::endl;
+    std::cout << std::endl;
+    std::cout << lib2.GetPubKeyAt(0x9A551AB3) << std::endl;
+    std::cout << lib2.SignWithKeyAt(0x9A551AB3, "message") << std::endl;
     return 0;
 }
 
