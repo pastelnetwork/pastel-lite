@@ -3,15 +3,22 @@
 // file COPYING or https://www.opensource.org/licenses/mit-license.php.
 
 #include <sodium.h>
+#include <botan/hash.h>
+
 #include "hd_wallet.h"
 #include "utiltime.h"
 #include "base58.h"
 #include "pubkey.h"
 #include "key.h"
 #include "crypto/aes.h"
+#include "crypto/hmac_sha512.h"
 #include "hash.h"
 #include "pastelid/pastel_key.h"
-#include "pastelid/secure_container.h"
+#include "pastelid/legroast.h"
+#include "pastelid/ed.h"
+
+using namespace legroast;
+using namespace ed_crypto;
 
 string CHDWallet::SetupNewWallet(NetworkMode mode, const SecureString &password) {
     m_NetworkMode = mode;
@@ -205,36 +212,33 @@ void CHDWallet::Unlock(const SecureString &strPassphrase) {
     return strPubKey;
 }
 
-optional<CKey> CHDWallet::GetAddressKey(const string &address) {
+[[nodiscard]] optional<CKey> CHDWallet::GetAddressKey(const string &address) {
     auto addrIndex = m_addressIndexMap[address];
     return GetAddressKey(addrIndex);
 }
 
-optional<CKey> CHDWallet::GetAddressKey(uint32_t addrIndex) const {
+[[nodiscard]] optional<CKey> CHDWallet::GetAddressKey(uint32_t addrIndex) const {
     auto extKey = getExtKey(addrIndex);
     auto key = extKey.value().key;
     return key;
 }
 
-[[nodiscard]] string CHDWallet::GetWalletPubKey() {
-    return GetPubKeyAt(m_NetworkParams->walletIDIndex);
-}
-
-[[nodiscard]] string CHDWallet::SignWithWalletKey(string message) {
-    return SignWithKeyAt(m_NetworkParams->walletIDIndex, message);
-}
-
-[[nodiscard]] string CHDWallet::GetPubKeyAt(uint32_t addrIndex) {
-    auto key = GetAddressKey(addrIndex);
-    if (!key.has_value()) {
-        throw runtime_error("Failed to get key");
+[[nodiscard]] vector<string> CHDWallet::GetAddresses() const {
+    vector<string> addresses;
+    addresses.reserve(m_addressIndexMap.size());
+    for (const auto &pair: m_addressIndexMap) {
+        addresses.push_back(pair.first);
     }
-    auto pubKey = key->GetPubKey();
-    return EncodeBase58(pubKey.begin(), pubKey.end());
+    return addresses;
 }
 
-[[nodiscard]] string CHDWallet::SignWithKeyAt(uint32_t addrIndex, string message) {
-    auto key = GetAddressKey(addrIndex);
+[[nodiscard]] string CHDWallet::SignWithAddressKey(const string& address, const string& message, bool fBase64){
+    if (!m_addressIndexMap.contains(address)) {
+        throw runtime_error("Address not found");
+    }
+    //if (!m_addressMapNonHD.contains(address)) // TODO: support non-HD addresses
+
+    auto key = GetAddressKey(m_addressIndexMap[address]);
     if (!key.has_value()) {
         throw runtime_error("Failed to get account key");
     }
@@ -243,7 +247,11 @@ optional<CKey> CHDWallet::GetAddressKey(uint32_t addrIndex) const {
     CHash256().Write((unsigned char *) message.data(), message.size()).Finalize(hash.begin());
     v_uint8 vchSig;
     if (key.value().Sign(hash, vchSig)) {
-        return EncodeBase58(vchSig);
+        if (fBase64) {
+            return Botan::base64_encode(vchSig);
+        } else {
+            return string(vchSig.begin(), vchSig.end());
+        }
     }
     return "";
 }
@@ -315,27 +323,264 @@ CExtPubKey CHDWallet::decodeExtPubKey(const string &str, const CChainParams *net
     return key;
 }
 
-#include <iostream>
-void CHDWallet::GetPastelIDs(){
-    secure_container::CSecureContainer container;
-    pastelid_store_t pastelId = CPastelID::CreateNewPastelKeys("passphrase", container);
-    std::cout << "PastelID: " << pastelId.begin()->second << std::endl;
+v_uint8 CHDWallet::makePastelIDSeed(uint32_t addrIndex, PastelIDType type) {
+    try {
+        auto addressKey1 = GetAddressKey(addrIndex);
+        if (!addressKey1.has_value()) {
+            throw runtime_error(fmt::format("Failed to get key at index {}", addrIndex));
+        }
+        auto privateKey1 = addressKey1.value().GetPrivKey();
+        auto addrIndex2 = HARDENED_KEY_LIMIT + addrIndex;
+        auto addressKey2 = GetAddressKey(addrIndex2);
+        if (!addressKey2.has_value()) {
+            throw runtime_error(fmt::format("Failed to get key at index {}", addrIndex2));
+        }
+        auto privateKey2 = addressKey2.value().GetPrivKey();
 
-    string sLegroastPubKey;
-    container.get_public_data(secure_container::PUBLIC_ITEM_TYPE::pubkey_legroast, sLegroastPubKey);
-    std::cout << "PastelID: " << sLegroastPubKey << std::endl;
+        auto hmacKey = (type == PastelIDType::PASTELID) ? privateKey1 : privateKey2;
+        auto hmacMsg = (type == PastelIDType::PASTELID) ? privateKey2 : privateKey1;
 
+        std::vector<unsigned char> hmac_result(CHMAC_SHA512::OUTPUT_SIZE);
+        CHMAC_SHA512(hmacKey.data(), hmacKey.size())
+                .Write(hmacMsg.data(), hmacMsg.size())
+                .Finalize(hmac_result.data());
 
-//    legroast::CLegRoast<legroast::algorithm::Legendre_Middle> LegRoastKey;
-//    LegRoastKey.keygen();
-//    LegRoastKey.get_private_key();
-//    std::cout << CPastelID::EncodeLegRoastPubKey(LegRoastKey.get_public_key());
+        std::string shake_name = fmt::format("SHAKE-128({})", ED448_LEN * 8);
+        std::unique_ptr<Botan::HashFunction> hash(Botan::HashFunction::create(shake_name));
+        if (!hash) {
+            throw runtime_error(fmt::format("Failed to hash keys for indexes {0}:{1}", addrIndex, addrIndex2));
+        }
+        hash->update(hmac_result);
+        Botan::secure_vector<uint8_t> output_data = hash->final();
+        if (output_data.size() != ED448_LEN) {
+            output_data.resize(ED448_LEN);
+        }
+        return {output_data.begin(), output_data.end()};
+    } catch (const exception &e) {
+        throw runtime_error(e.what());
+    }
 }
 
-bool CHDWallet::EncryptWithMasterKey(const v_uint8& data, const uint256& nIV, v_uint8& encryptedData) {
+[[nodiscard]] string CHDWallet::MakeNewPastelID() {
+    try {
+        auto newIndex = m_pastelIDIndexMap.size();
+        const key_dsa448 key = key_dsa448::generate_key(makePastelIDSeed(newIndex, PastelIDType::PASTELID));
+        auto pastelID = CPastelID::EncodePastelID(key.public_key_raw());
 
+        CLegRoast<algorithm::Legendre_Middle> legRoastKey;
+        legRoastKey.keygen(makePastelIDSeed(newIndex, PastelIDType::LEGROAST));
+        auto legRoastPubKey = CPastelID::EncodeLegRoastPubKey(legRoastKey.get_public_key());
+
+        m_pastelIDIndexMap[pastelID] = newIndex;
+        m_indexPastelIDMap[newIndex] = pastelID;
+        m_pastelIDLegRoastMap[pastelID] = legRoastPubKey;
+
+        return pastelID;
+
+    } catch (const crypto_exception &ex) {
+        throw runtime_error(ex.what());
+    }
 }
 
-bool CHDWallet::DecryptWithMasterKey(const v_uint8& encryptedData, const uint256& nIV, v_uint8& data){
+string CHDWallet::GetPastelID(uint32_t addrIndex, PastelIDType type) {
+    if (m_indexPastelIDMap.contains(addrIndex)) {
+        auto pastelID = m_indexPastelIDMap[addrIndex];
+        if (type == PastelIDType::PASTELID) {
+            return pastelID;
+        } else if (type == PastelIDType::LEGROAST) {
+            return m_pastelIDLegRoastMap[pastelID];
+        } else {
+            throw runtime_error("Invalid PastelID type");
+        }
+    }
+    throw runtime_error("PastelID not found");
+}
+
+string CHDWallet::GetPastelID(const string &pastelID, PastelIDType type) {
+    if (m_pastelIDIndexMap.contains(pastelID)) {
+        if (type == PastelIDType::PASTELID) {
+            return pastelID;
+        } else if (type == PastelIDType::LEGROAST) {
+            return m_pastelIDLegRoastMap[pastelID];
+        } else {
+            throw runtime_error("Invalid PastelID type");
+        }
+    }
+    throw runtime_error("PastelID not found");
+}
+
+[[nodiscard]] v_uint8 CHDWallet::GetPastelIDKey(uint32_t addrIndex, PastelIDType type) {
+    if (m_indexPastelIDMap.contains(addrIndex)) {
+        if (type == PastelIDType::PASTELID) {
+            const key_dsa448 key = key_dsa448::generate_key(makePastelIDSeed(addrIndex, PastelIDType::PASTELID));
+            return key.private_key_raw();
+        } else if (type == PastelIDType::LEGROAST) {
+            CLegRoast<algorithm::Legendre_Middle> LegRoastKey;
+            LegRoastKey.keygen(makePastelIDSeed(addrIndex, PastelIDType::LEGROAST));
+            return LegRoastKey.get_private_key();
+        } else {
+            throw runtime_error("Invalid PastelID type");
+        }
+    }
+    throw runtime_error("PastelID not found");
+}
+
+[[nodiscard]] v_uint8 CHDWallet::GetPastelIDKey(const string &pastelID, PastelIDType type) {
+    if (m_pastelIDIndexMap.contains(pastelID)) {
+        return GetPastelIDKey(m_pastelIDIndexMap[pastelID], type);
+    }
+    if (m_externalPastelIDs.contains(pastelID)) {
+        auto externalPastelID = m_externalPastelIDs[pastelID];
+        v_uint8 key;
+        if (type == PastelIDType::PASTELID) {
+            DecryptWithMasterKey(externalPastelID.m_encryptedPastelIDKey.second,
+                                 externalPastelID.m_encryptedPastelIDKey.first, key);
+        } else if (type == PastelIDType::LEGROAST) {
+            DecryptWithMasterKey(externalPastelID.m_encryptedLegRoastKey.second,
+                                 externalPastelID.m_encryptedLegRoastKey.first, key);
+        }
+        return key;
+    }
+    throw runtime_error("PastelID key not found");
+}
+
+[[nodiscard]] vector<string> CHDWallet::GetPastelIDs() const {
+    vector<string> pastelIDs;
+    pastelIDs.reserve(m_pastelIDIndexMap.size() + m_externalPastelIDs.size());
+    for (const auto &pair: m_pastelIDIndexMap) {
+        pastelIDs.push_back(pair.first);
+    }
+    for (const auto &pair: m_externalPastelIDs) {
+        pastelIDs.push_back(pair.first);
+    }
+    return pastelIDs;
+}
+
+[[nodiscard]] string CHDWallet::SignWithPastelID(const string& pastelID, const string& message, PastelIDType type, bool fBase64){
+    if (!m_pastelIDIndexMap.contains(pastelID))
+        throw runtime_error("PastelID not found");
+    auto addrIndex = m_pastelIDIndexMap[pastelID];
+
+    if (type == PastelIDType::PASTELID) {
+        const auto key = key_dsa448::generate_key(makePastelIDSeed(addrIndex, PastelIDType::PASTELID));
+        auto sigBuf = ed_crypto::crypto_sign::sign(message, key);
+        if (fBase64) {
+            return Botan::base64_encode(sigBuf);
+        } else {
+            return {sigBuf.begin(), sigBuf.end()};
+        }
+    } else if (type == PastelIDType::LEGROAST) {
+        CLegRoast<algorithm::Legendre_Middle> LegRoastKey;
+        LegRoastKey.keygen(makePastelIDSeed(addrIndex, PastelIDType::LEGROAST));
+        string error;
+        if (!LegRoastKey.sign(error, reinterpret_cast<const unsigned char*>(message.data()), message.length()))
+            throw runtime_error(fmt::format("Failed to sign text message with the LegRoast private key. {}", error));
+        auto sigBuf = LegRoastKey.get_signature();
+        if (fBase64)
+            return Botan::base64_encode(reinterpret_cast<const unsigned char*>(sigBuf.data()), sigBuf.length());
+        return {sigBuf.begin(), sigBuf.end()};
+    } else {
+        throw runtime_error("Invalid PastelID type");
+    }
 
 }
+[[nodiscard]] bool CHDWallet::VerifyWithPastelID(const string& pastelID, const string& message, const string& signature, bool fBase64){
+    v_uint8 vRawPubKey;
+    if (!CPastelID::DecodePastelID(pastelID, vRawPubKey))
+        throw runtime_error("Invalid PastelID");
+
+    auto key = ed_crypto::key_dsa448::create_from_raw_public(vRawPubKey);
+    if (fBase64)
+        return ed_crypto::crypto_sign::verify_base64(message, signature, key);
+    else
+        return ed_crypto::crypto_sign::verify(message, signature, key);
+
+}
+[[nodiscard]] bool CHDWallet::VerifyWithLegRoast(const string& lrPubKey, const string& message, const string& signature, bool fBase64){
+    v_uint8 vLRPubKey;
+    if (!CPastelID::DecodeLegRoastPubKey(lrPubKey, vLRPubKey))
+        throw runtime_error("Invalid LegRoast Public key");
+
+    string error;
+    CLegRoast<algorithm::Legendre_Middle> LegRoast;
+    if (!LegRoast.set_public_key(error, vLRPubKey.data(), vLRPubKey.size()))
+        throw runtime_error(error);
+
+    if (fBase64) {
+        auto b64Sign = Botan::base64_decode(signature);
+        if (!LegRoast.set_signature(error, {b64Sign.begin(), b64Sign.end()}))
+            throw runtime_error(error);
+    } else {
+        if (!LegRoast.set_signature(error, reinterpret_cast<const unsigned char*>(signature.data()), signature.size()))
+            throw runtime_error(error);
+    }
+    return LegRoast.verify(error, reinterpret_cast<const unsigned char*>(message.data()), message.size());
+}
+
+[[nodiscard]] bool CHDWallet::AddExternalPastelID() {
+//    auto pKey = LegRoastKey.get_private_key();
+//    auto fingerprint = CPastelID::LegRoastFingerprint(pKey);
+//    EncryptWithMasterKey(pKey, uint256(), legroast);
+    return true;
+}
+
+void CHDWallet::ExportPastelIDKeys(const string& pastelID, SecureString&& passPhrase, const string& sDirPath){
+    auto keyBufPastelID = GetPastelIDKey(pastelID, PastelIDType::PASTELID);
+    auto keyBufLegRoast = GetPastelIDKey(pastelID, PastelIDType::LEGROAST);
+    auto legRoastPubKey = GetPastelID(pastelID, PastelIDType::LEGROAST);
+    CPastelID::CreatePastelKeysFile(sDirPath, std::move(passPhrase),
+                                    pastelID, legRoastPubKey, keyBufPastelID, keyBufLegRoast);
+}
+
+bool CHDWallet::EncryptWithMasterKey(const v_uint8 &data, const uint256 &nIV, v_uint8 &encryptedData) const {
+    if (IsLocked()) {
+        throw runtime_error("Wallet is locked");
+    }
+    if (!CCrypter::EncryptSecret(m_vMasterKey, data, nIV, encryptedData)) {
+        throw runtime_error("Failed to encrypt data with master key");
+    }
+    return true;
+}
+
+bool CHDWallet::DecryptWithMasterKey(const v_uint8 &encryptedData, const uint256 &nIV, v_uint8 &data) const {
+    if (IsLocked()) {
+        throw runtime_error("Wallet is locked");
+    }
+    if (!CCrypter::DecryptSecret(m_vMasterKey, encryptedData, nIV, data)) {
+        throw runtime_error("Failed to decrypt data with master key");
+    }
+    return true;
+}
+
+[[nodiscard]] string CHDWallet::GetWalletPubKey() {
+    return GetPubKeyAt(m_NetworkParams->walletIDIndex);
+}
+
+[[nodiscard]] string CHDWallet::SignWithWalletKey(string message) {
+    return SignWithKeyAt(m_NetworkParams->walletIDIndex, std::move(message));
+}
+
+[[nodiscard]] string CHDWallet::GetPubKeyAt(uint32_t addrIndex) const {
+    auto key = GetAddressKey(addrIndex);
+    if (!key.has_value()) {
+        throw runtime_error("Failed to get key");
+    }
+    auto pubKey = key->GetPubKey();
+    return EncodeBase58(pubKey.begin(), pubKey.end());
+}
+
+[[nodiscard]] string CHDWallet::SignWithKeyAt(uint32_t addrIndex, string message) {
+    auto key = GetAddressKey(addrIndex);
+    if (!key.has_value()) {
+        throw runtime_error("Failed to get account key");
+    }
+
+    uint256 hash;
+    CHash256().Write((unsigned char *) message.data(), message.size()).Finalize(hash.begin());
+    v_uint8 vchSig;
+    if (key.value().Sign(hash, vchSig)) {
+        return EncodeBase58(vchSig);
+    }
+    return "";
+}
+

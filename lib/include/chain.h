@@ -15,6 +15,11 @@ enum class NetworkMode {
     UNKNOWN = 6
 };
 
+enum class PastelIDType {
+    PASTELID = 0,
+    LEGROAST = 1
+};
+
 class CChainParams{
 public:
     enum struct Base58Type : uint32_t

@@ -26,14 +26,28 @@ public:
     string ImportWallet(const string& data);
     string UnlockWallet(const SecureString& password);
     string LockWallet();
+
+    // Address functions
     string MakeNewAddress();
     string GetAddress(uint32_t addrIndex);
     string GetAddressesCount();
     string GetAddresses();
-    string GetWalletPubKey();    // returns base58 encoded Public Key, w/o prefix and checksum
-    string SignWithWalletKey(string message);
-    string GetPubKeyAt(uint32_t addrIndex);   // returns base58 encoded Public Key, w/o prefix and checksum
-    string SignWithKeyAt(uint32_t addrIndex, string message);
+    string SignWithAddressKey(const string& address, const string& message, bool fBase64 = false);
 
-    void GetPastelID() {m_HDWallet.GetPastelIDs();}
+    // PastelID functions
+    string MakeNewPastelID();
+    string GetPastelID(uint32_t addrIndex, PastelIDType type = PastelIDType::PASTELID);
+    string GetPastelID(const string& pastelID, PastelIDType type = PastelIDType::PASTELID);
+    string GetPastelIDsCount();
+    string GetPastelIDs();
+    string SignWithPastelID(const string& pastelID, const string& message, PastelIDType type = PastelIDType::PASTELID, bool fBase64 = false);
+    string VerifyWithPastelID(const string& pastelID, const string& message, const string& signature, bool fBase64 = false);
+    string VerifyWithLegRoast(const string& lrPubKey, const string& message, const string& signature, bool fBase64 = false);
+    string ExportPastelIDKeys(const string& pastelID, SecureString&& passPhrase, const string& sDirPath);
+
+    // Key functions
+    string GetWalletPubKey();                   // returns base58 encoded Public Key, w/o prefix and checksum
+    string SignWithWalletKey(string message);
+    string GetPubKeyAt(uint32_t addrIndex);     // returns base58 encoded Public Key, w/o prefix and checksum
+    string SignWithKeyAt(uint32_t addrIndex, string message);
 };

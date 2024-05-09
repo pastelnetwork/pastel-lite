@@ -8,8 +8,16 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 include(FetchContent)
 include(ExternalProject)
 
+set(BOTAN_VERBOSE_OUTPUT ON)
+set(BOTAN_VERBOSE_CONFIGURE ON)
+set(BOTAN_VERBOSE_BUILD ON)
+set(BOTAN_VERBOSE_INSTALL ON)
+
 if (NOT EMSCRIPTEN)
     set(BUILD_SHARED_LIBS OFF CACHE INTERNAL "")
+
+    # libsodium
+    find_package(unofficial-sodium CONFIG REQUIRED)
 
     # bitcoin/libsecp256k1cc
     set(SECP256K1_DISABLE_SHARED ON CACHE INTERNAL "")
@@ -21,12 +29,6 @@ if (NOT EMSCRIPTEN)
     )
     FetchContent_MakeAvailable(libsecp256k1)
 
-    # libsodium
-    find_package(unofficial-sodium CONFIG REQUIRED)
-
-    # Botan
-    find_package(botan REQUIRED)
-
     # fmt
     FetchContent_Declare(
             fmt
@@ -34,6 +36,21 @@ if (NOT EMSCRIPTEN)
             GIT_TAG master  # or specific commit/tag
     )
     FetchContent_MakeAvailable(fmt)
+
+    # Botan
+    ExternalProject_Add(
+            libbotan
+            GIT_REPOSITORY https://github.com/randombit/botan.git
+            GIT_TAG master  # or a specific version tag
+            PREFIX ${CMAKE_BINARY_DIR}/libbotan
+            BUILD_IN_SOURCE 1  # Build in the source directory
+            CONFIGURE_COMMAND ./configure.py --prefix=${CMAKE_BINARY_DIR}/libbotan --disable-shared-library --minimized-build --enable-modules=auto_rng,system_rng,hash,shake,shake_xof,sha3,ed448,pbkdf2,hmac,x448,base64,sha2_32,sha2_64
+            BUILD_COMMAND make
+            INSTALL_COMMAND make install
+            LOG_DOWNLOAD ON
+            LOG_BUILD ON
+            LOG_INSTALL ON
+    )
 
     add_subdirectory(lib)
     add_subdirectory(app)
@@ -45,7 +62,6 @@ else () # EMSCRIPTEN
             PREFIX ${CMAKE_BINARY_DIR}/libsodium
             CONFIGURE_COMMAND ""
             BUILD_IN_SOURCE 1  # Build in the source directory
-            UPDATE_DISCONNECTED 1
             BUILD_COMMAND sh ${CMAKE_BINARY_DIR}/libsodium/src/libsodium/dist-build/emscripten.sh --standard
             INSTALL_COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_BINARY_DIR}/libsodium/src/libsodium/libsodium-js ${CMAKE_BINARY_DIR}/libsodium-wasm
             LOG_DOWNLOAD ON
@@ -60,7 +76,6 @@ else () # EMSCRIPTEN
             GIT_TAG master  # or a specific commit/tag
             PREFIX ${CMAKE_BINARY_DIR}/libsecp256k1
             BUILD_IN_SOURCE 1  # Build in the source directory
-            UPDATE_DISCONNECTED 1
             UPDATE_COMMAND ./autogen.sh
             CONFIGURE_COMMAND emconfigure ./configure --enable-module-recovery --disable-shared --prefix=${CMAKE_BINARY_DIR}/libsecp256k1-wasm
             BUILD_COMMAND emmake make
@@ -76,8 +91,7 @@ else () # EMSCRIPTEN
             GIT_TAG master  # or a specific version tag
             PREFIX ${CMAKE_BINARY_DIR}/libbotan
             BUILD_IN_SOURCE 1  # Build in the source directory
-            UPDATE_DISCONNECTED 1
-            CONFIGURE_COMMAND ./configure.py --prefix=${CMAKE_BINARY_DIR}/libbotan-wasm --os=emscripten --cpu=wasm --cc=emcc --disable-shared-library --minimized-build --enable-modules=auto_rng,hash,shake,shake_xof,sha3,ed448,pbkdf2,hmac
+            CONFIGURE_COMMAND ./configure.py --prefix=${CMAKE_BINARY_DIR}/libbotan-wasm --os=emscripten --cpu=wasm --cc=emcc --disable-shared-library --minimized-build --enable-modules=auto_rng,system_rng,hash,shake,shake_xof,sha3,ed448,pbkdf2,hmac,x448,base64,sha2_32,sha2_64
             BUILD_COMMAND make
             INSTALL_COMMAND make install
             LOG_DOWNLOAD ON
@@ -91,7 +105,6 @@ else () # EMSCRIPTEN
             GIT_TAG master  # or a specific version tag
             PREFIX ${CMAKE_BINARY_DIR}/fmt
             BUILD_IN_SOURCE 1  # Build in the source directory
-            UPDATE_DISCONNECTED 1
             CONFIGURE_COMMAND emcmake cmake -DFMT_TEST=OFF -DCMAKE_INSTALL_PREFIX=${CMAKE_BINARY_DIR}/fmt-wasm .
             BUILD_COMMAND emmake make
             INSTALL_COMMAND make install

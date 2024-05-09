@@ -87,6 +87,12 @@ string Pastel::GetAddresses() {
     });
 }
 
+string Pastel::SignWithAddressKey(const string& address, const string& message, bool fBase64){
+    return wrapResponse([&]() {
+        return m_HDWallet.SignWithAddressKey(address, message, fBase64);
+    });
+}
+
 string Pastel::GetWalletPubKey() {
     return wrapResponse([&]() {
         return m_HDWallet.GetWalletPubKey();
@@ -111,6 +117,63 @@ string Pastel::SignWithKeyAt(uint32_t addrIndex, string message) {
     });
 }
 
+string Pastel::MakeNewPastelID()
+{
+    return wrapResponse([&]() {
+        return m_HDWallet.MakeNewPastelID();
+    });
+}
+
+string Pastel::GetPastelID(uint32_t addrIndex, PastelIDType type)
+{
+    return wrapResponse([&]() {
+        return m_HDWallet.GetPastelID(addrIndex, type);
+    });
+}
+
+string Pastel::GetPastelID(const string& pastelID, PastelIDType type)
+{
+    return wrapResponse([&]() {
+        return m_HDWallet.GetPastelID(pastelID, type);
+    });
+}
+
+string Pastel::GetPastelIDsCount() {
+    return wrapResponse([&]() {
+        return m_HDWallet.GetPastelIDsCount();
+    });
+}
+
+string Pastel::GetPastelIDs()
+{
+    return wrapResponse([&]() {
+        return m_HDWallet.GetPastelIDs();
+    });
+}
+
+string Pastel::SignWithPastelID(const string& pastelID, const string& message, PastelIDType type, bool fBase64) {
+    return wrapResponse([&]() {
+        return m_HDWallet.SignWithPastelID(pastelID, message, type, fBase64);
+    });
+}
+
+string Pastel::VerifyWithPastelID(const string& pastelID, const string& message, const string& signature, bool fBase64){
+    return wrapResponse([&]() {
+        return m_HDWallet.VerifyWithPastelID(pastelID, message, signature, fBase64);
+    });
+}
+
+string Pastel::VerifyWithLegRoast(const string& lrPubKey, const string& message, const string& signature, bool fBase64){
+    return wrapResponse([&]() {
+        return m_HDWallet.VerifyWithLegRoast(lrPubKey, message, signature, fBase64);
+    });
+}
+
+string Pastel::ExportPastelIDKeys(const string& pastelID, SecureString&& passPhrase, const string& sDirPath) {
+    return wrapResponse([&]() {
+        return m_HDWallet.ExportPastelIDKeys(pastelID, std::move(passPhrase), sDirPath);
+    });
+}
 
 #ifdef __EMSCRIPTEN__
 EMSCRIPTEN_BINDINGS(PastelModule) {
@@ -118,6 +181,10 @@ EMSCRIPTEN_BINDINGS(PastelModule) {
         .value("Mainnet", NetworkMode::MAINNET)
         .value("Testnet", NetworkMode::TESTNET)
         .value("Regtest", NetworkMode::REGTEST)
+        ;
+    emscripten::enum_<>("PastelIDType")
+        .value("PastelID", PastelIDType::PASTELID)
+        .value("LegRoast", PastelIDType::LEGROAST)
         ;
     emscripten::class_<Pastel>("Pastel")
         .constructor<>()

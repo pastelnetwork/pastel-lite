@@ -9,8 +9,8 @@
  * \date   May 2024
  *********************************************************************/
 #pragma once
-#include <string.h>
-#include <stdint.h>
+#include <cstring>
+#include <cstdint>
 #include <memory>
 #include <array>
 
@@ -215,9 +215,18 @@ public:
     /**
     * Generate private/public key pair.
     */
-    void keygen()
+    void keygen(v_uint8&& seed = v_uint8())
     {
         Botan::AutoSeeded_RNG rng;
+        if (seed.empty()) {
+            rng.randomize(m_sk, SEED_BYTES);
+        } else {
+            if (seed.size() != SEED_BYTES) {
+                seed.resize(SEED_BYTES);
+            }
+            std::copy(seed.begin(), seed.end(), m_sk);
+        }
+
         rng.randomize(m_sk, SEED_BYTES);
 
         uint128_t key;
@@ -565,7 +574,8 @@ private:
             auto& pShares = m_prover_state->shares[nRound];
             auto& pSums = m_prover_state->sums[nRound];
             // pick root seed
-            RAND_bytes(pSeedTrees, SEED_BYTES);
+            Botan::AutoSeeded_RNG rng;
+            rng.randomize(pSeedTrees, SEED_BYTES);
 
             // generate seeds
             generate_seed_tree(pSeedTrees);

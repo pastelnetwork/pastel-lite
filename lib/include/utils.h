@@ -5,6 +5,7 @@
 #include <string>
 #include <algorithm>
 #include <ranges>
+#include <cmath>
 
 constexpr signed char HexDigit(char c) {
     return [c]() -> signed char {

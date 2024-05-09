@@ -251,23 +251,16 @@ public:
     // Extract secure data from the container by type (returns string)
     std::string extract_secure_data_string(const SECURE_ITEM_TYPE type);
 
-////////////////////////// Serialize/DeSerialize //////////////////////////
-    // Serialize secure container into v_uint8
-    bool serialize(SecureString&& sPassphrase, v_uint8& vOut);
-
-////////////////////////// FS based functions //////////////////////////
-#ifndef __EMSCRIPTEN__
     // encrypt and write container to file as a msgpack
-    static bool write_to_file(const std::string& sFilePath, const v_uint8& vIn);
+    bool write_to_file(const std::string& sFilePath, SecureString&& sPassphrase);
     // read from secure container file encrypted secure data as a msgpack and decrypt
     bool read_from_file(const std::string& sFilePath, const SecureString& sPassphrase);
     // read from secure container file public data as a msgpack
     bool read_public_from_file(std::string &error, const std::string& sFilePath);
-    // change passphrase that was used to encrypt the secure container in file
+    // change passphrase that was used to encrypt the secure container
     bool change_passphrase(const std::string& sFilePath, SecureString&& sOldPassphrase, SecureString&& sNewPassphrase);
-    // validate passphrase from secure container in file
+    // validate passphrase from secure container
     bool is_valid_passphrase(const std::string& sFilePath, const SecureString& sPassphrase);
-#endif
 
 private:
     static constexpr size_t PWKEY_BUFSUZE = crypto_box_SEEDBYTES;
@@ -284,8 +277,6 @@ private:
 
     auto find_secure_item(const SECURE_ITEM_TYPE type) noexcept;
     auto find_public_item(const PUBLIC_ITEM_TYPE type) const noexcept;
-
-////////////////////////// FS based function //////////////////////////
     bool read_public_items_ex(std::ifstream& fs, uint64_t& nDataSize);
 };
 
