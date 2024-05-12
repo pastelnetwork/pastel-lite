@@ -31,22 +31,20 @@ constexpr unsigned char PASTEL_LR_FP[SEEDBYTES] =
 pastelid_store_t CPastelID::CreateNewPastelKeysFile(const string &sDirPath, SecureString &&passPhrase) {
     pastelid_store_t resultMap;
     try {
-        // Pastel ID private/public keys (EdDSA448)
+        // Pastel ID (EdDSA448)
         Botan::AutoSeeded_RNG rng;
         v_uint8 seed;
         seed.resize(ED448_LEN);
         rng.randomize(seed);
         auto key = Botan::Ed448_PrivateKey(std::span(seed));
-
-        // encode public key with Pastel ID prefix (A1DE), base58 encode + checksum
         string sPastelID = EncodePastelID(key.public_key_bits());
-        // LegRoast signing keys
+        auto privKey = key.raw_private_key_bits();
+
+        // LegRoast
         CLegRoast<algorithm::Legendre_Middle> LegRoastKey;
-        // generate LegRoast private/public key pair
         LegRoastKey.keygen();
         string sEncodedLegRoastPubKey = EncodeLegRoastPubKey(LegRoastKey.get_public_key());
 
-        auto privKey = key.private_key_bits();
         // write secure container with both private keys
         CreatePastelKeysFile(sDirPath, std::move(passPhrase), sPastelID, sEncodedLegRoastPubKey,
                              {privKey.begin(), privKey.end()}, LegRoastKey.get_private_key());

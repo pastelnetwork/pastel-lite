@@ -75,7 +75,7 @@ namespace crypto_helpers {
     }
     inline v_uint8 ed448_privkey(v_uint8&& seed) {
         auto key = Botan::Ed448_PrivateKey(std::span(seed));
-        auto privKey = key.private_key_bits();
+        auto privKey = key.raw_private_key_bits();
         return {privKey.begin(), privKey.end()};
     }
     inline string ed448_sign(v_uint8&& seed, const string& message, encoding enc)

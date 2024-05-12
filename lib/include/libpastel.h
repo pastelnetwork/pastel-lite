@@ -20,11 +20,11 @@ public:
     Pastel();
 
     // Wallet functions
-    string CreateNewWallet(NetworkMode mode, const SecureString& password);
-    string CreateWalletFromMnemonic(const string& mnemonic, NetworkMode mode, const SecureString& password);
+    string CreateNewWallet(NetworkMode mode, const string& password);
+    string CreateWalletFromMnemonic(const string& mnemonic, NetworkMode mode, const string& password);
     string ExportWallet();
     string ImportWallet(const string& data);
-    string UnlockWallet(const SecureString& password);
+    string UnlockWallet(const string& password);
     string LockWallet();
 
     // Address functions
@@ -36,14 +36,14 @@ public:
 
     // PastelID functions
     string MakeNewPastelID();
-    string GetPastelID(uint32_t addrIndex, PastelIDType type = PastelIDType::PASTELID);
+    string GetPastelIDByIndex(uint32_t addrIndex, PastelIDType type = PastelIDType::PASTELID);
     string GetPastelID(const string& pastelID, PastelIDType type = PastelIDType::PASTELID);
     string GetPastelIDsCount();
     string GetPastelIDs();
     string SignWithPastelID(const string& pastelID, const string& message, PastelIDType type = PastelIDType::PASTELID, bool fBase64 = false);
     string VerifyWithPastelID(const string& pastelID, const string& message, const string& signature, bool fBase64 = false);
     string VerifyWithLegRoast(const string& lrPubKey, const string& message, const string& signature, bool fBase64 = false);
-    string ExportPastelIDKeys(const string& pastelID, SecureString&& passPhrase, const string& sDirPath);
+    string ExportPastelIDKeys(const string& pastelID, string passPhrase, const string& sDirPath);
 
     // Key functions
     string GetWalletPubKey();                   // returns base58 encoded Public Key, w/o prefix and checksum

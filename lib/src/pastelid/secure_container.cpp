@@ -14,16 +14,35 @@
 using namespace std;
 using namespace secure_container;
 
-/**
- * Add secure item to the container (data in a string).
- * 
- * \param type - item type
- * \param sData - data string to encrypt
- */
-void CSecureContainer::add_secure_item_string(const SECURE_ITEM_TYPE type, const std::string& sData) noexcept
-{
-    m_vSecureItems.emplace_back(type, nlohmann::json::binary_t(std::move(string_to_vector(sData))), nullptr);
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+void initFS() {
+    EM_ASM(
+        FS.mkdir('/wallet_data');
+        FS.mount(IDBFS, {}, '/wallet_data');
+        FS.syncfs(true, function(err) {
+            if (err) {
+                console.error('Error syncing file system:', err);
+            } else {
+                console.log('File system synced successfully.');
+            }
+        });
+    );
 }
+
+// Function to sync the file system
+void syncFS() {
+    EM_ASM(
+        FS.syncfs(function(err) {
+            if (err) {
+                console.error('Error syncing file system:', err);
+            } else {
+                console.log('File system synced successfully.');
+            }
+        });
+    );
+}
+#endif
 
 /**
  * Add secure item to the container (data in a byte vector).
@@ -42,18 +61,6 @@ void CSecureContainer::add_secure_item_vector(const SECURE_ITEM_TYPE type, v_uin
 }
 
 /**
- * Add secure item to the container (handler interface to get data).
- * 
- * \param type - item type
- * \param sData - data string to encrypt
- * \param pHandler - interface to set/get secure data for the item
- */
-void CSecureContainer::add_secure_item_handler(const SECURE_ITEM_TYPE type, ISecureDataHandler* pHandler) noexcept 
-{
-    m_vSecureItems.emplace_back(type, nlohmann::json::binary_t(), pHandler);
-}
-
-/**
  * Add public item to the secure container.
  * 
  * \param type - public item type
@@ -64,138 +71,159 @@ void CSecureContainer::add_public_item(const PUBLIC_ITEM_TYPE type, const std::s
      m_vPublicItems.emplace_back(type, std::move(string_to_vector(sData)));
 }
 
-////////////////////////// Serialize/DeSerialize //////////////////////////
 /**
- * Serialize secure container to a Base58 encoded string.
+ * Write secure container to the file.
  *
  * \param sPassphrase - passphrase in clear text to use for encryption
- * \return - Base58 encoded string
  */
-bool CSecureContainer::write_to_file(const string& sFilePath, SecureString&& sPassphrase)
-{
-    using json = nlohmann::ordered_json;
+void CSecureContainer::write_to_file(const string& sFilePath, SecureString&& sPassphrase) {
 
-    ofstream fs(sFilePath, ios::out | ios::binary);
-    if (!fs)
-        throw runtime_error(fmt::format("Cannot open file [{}] to write the secure container", sFilePath.c_str()));
+        using json = nlohmann::ordered_json;
+#ifdef __EMSCRIPTEN__
+        initFS();
+        FILE* fs = fopen(sFilePath.c_str(), "wb");
+        if (!fs)
+            throw runtime_error(fmt::format("Cannot open file [{}] to write the secure container", sFilePath.c_str()));
+#else
+        ofstream fs(sFilePath, ios::out | ios::binary);
+        if (!fs)
+            throw runtime_error(fmt::format("Cannot open file [{}] to write the secure container", sFilePath.c_str()));
+#endif
 
-    json jItems;
-    // generate json for the public items
-    json jPublic =
-    {
-        { "version", SECURE_CONTAINER_VERSION }
-    };
-    size_t nJsonPublicSize = 20; // used to estimate size of the json with public items
+    try {
 
-    for (const auto& item: m_vPublicItems)
-    {
-        const auto szTypeName = GetPublicItemTypeName(item.type);
-        jItems.push_back(
-            {
-                { "type", szTypeName },
-                { "data", item.data }
-            });
-        nJsonPublicSize += 25 + strlen(szTypeName) + item.data.size();
-    }
-    jPublic.emplace("public_items", std::move(jItems));
-    jItems.clear();
+        json jItems;
+        // generate json for the public items
+        json jPublic =
+                {
+                        {"version", SECURE_CONTAINER_VERSION}
+                };
+        size_t nJsonPublicSize = 20; // used to estimate size of the json with public items
 
-    // generate a json header for the secure items
-    m_nTimestamp = time(nullptr);
-    json jSecure =
-    {
-        { "version", SECURE_CONTAINER_VERSION },
-        { "timestamp", m_nTimestamp },
-        { "encryption", SECURE_CONTAINER_ENCRYPTION }
-    };
-    size_t nJsonSecureSize = 200; // used to estimate size of the json with secure items
-    CSodiumAutoBuf pw;
-    // allocate secure memory for the key, buffer is reused for all secure items
-    if (!pw.allocate(PWKEY_BUFSUZE))
-        throw runtime_error(fmt::format("Failed to allocate memory ({} bytes)", PWKEY_BUFSUZE));
-    // encryption buffer is reused for all messages
-    json::binary_t encrypted_data;
-    for (auto& item : m_vSecureItems)
-    {
-        // generate nonce
-        item.nonce.resize(crypto_aead_xchacha20poly1305_ietf_NPUBBYTES);
-        randombytes_buf(item.nonce.data(), item.nonce.size());
-        // derive key from the passphrase
-        if (crypto_pwhash(pw.p, crypto_box_SEEDBYTES,
-            sPassphrase.c_str(), sPassphrase.length(), item.nonce.data(),
-            crypto_pwhash_OPSLIMIT_INTERACTIVE, crypto_pwhash_MEMLIMIT_INTERACTIVE, crypto_pwhash_ALG_DEFAULT) != 0)
-        {
-            throw runtime_error(fmt::format("Failed to generate encryption key for '{}'", GetSecureItemTypeName(item.type)));
+            for (const auto &item: m_vPublicItems) {
+                const auto szTypeName = GetPublicItemTypeName(item.type);
+                jItems.push_back(
+                        {
+                                {"type", szTypeName},
+                                {"data", item.data}
+                        });
+                nJsonPublicSize += 25 + strlen(szTypeName) + item.data.size();
+            }
+            jPublic.emplace("public_items", std::move(jItems));
+            jItems.clear();
+
+            // generate a json header for the secure items
+            m_nTimestamp = time(nullptr);
+            json jSecure =
+                    {
+                            {"version",    SECURE_CONTAINER_VERSION},
+                            {"timestamp",  m_nTimestamp},
+                            {"encryption", SECURE_CONTAINER_ENCRYPTION}
+                    };
+            size_t nJsonSecureSize = 200; // used to estimate size of the json with secure items
+            CSodiumAutoBuf pw;
+        // allocate secure memory for the key, buffer is reused for all secure items
+        if (!pw.allocate(PWKEY_BUFSUZE))
+            throw runtime_error(fmt::format("Failed to allocate memory ({} bytes)", PWKEY_BUFSUZE));
+        // encryption buffer is reused for all messages
+        json::binary_t encrypted_data;
+        for (auto &item: m_vSecureItems) {
+            // generate nonce
+            item.nonce.resize(crypto_aead_xchacha20poly1305_ietf_NPUBBYTES);
+            randombytes_buf(item.nonce.data(), item.nonce.size());
+            // derive key from the passphrase
+            if (crypto_pwhash(pw.p, crypto_box_SEEDBYTES,
+                              sPassphrase.c_str(), sPassphrase.length(), item.nonce.data(),
+                              crypto_pwhash_OPSLIMIT_INTERACTIVE, crypto_pwhash_MEMLIMIT_INTERACTIVE,
+                              crypto_pwhash_ALG_DEFAULT) != 0) {
+                throw runtime_error(
+                        fmt::format("Failed to generate encryption key for '{}'", GetSecureItemTypeName(item.type)));
+            }
+            // if data handler is defined -> use it to get secure data
+            if (item.pHandler) {
+                if (!item.pHandler->GetSecureData(item.data))
+                    throw runtime_error(fmt::format("Failed to get '{}' data", GetSecureItemTypeName(item.type)));
+                // possibility for caller to cleanup data
+                item.pHandler->CleanupSecureData();
+            }
+            // encrypt data using XChaCha20-Poly1305 construction
+            unsigned long long nEncSize = 0;
+            encrypted_data.resize(item.data.size() + crypto_aead_xchacha20poly1305_ietf_ABYTES);
+            if (crypto_aead_xchacha20poly1305_ietf_encrypt(encrypted_data.data(), &nEncSize,
+                                                           item.data.data(), item.data.size(), nullptr, 0, nullptr,
+                                                           item.nonce.data(), pw.p) != 0)
+                throw runtime_error(fmt::format("Failed to encrypt '{}' data", GetSecureItemTypeName(item.type)));
+            const auto szTypeName = GetSecureItemTypeName(item.type);
+            const size_t nEncryptedDataSize = encrypted_data.size();
+            const size_t nItemNonceSize = item.nonce.size();
+            jItems.push_back({
+                                     {"type",  szTypeName},
+                                     {"nonce", std::move(item.nonce)},
+                                     {"data",  std::move(encrypted_data)}
+                             });
+            nJsonSecureSize += 50 + strlen(szTypeName) + nItemNonceSize + nEncryptedDataSize;
         }
-        // if data handler is defined -> use it to get secure data
-        if (item.pHandler)
-        {
-            if (!item.pHandler->GetSecureData(item.data))
-                throw runtime_error(fmt::format("Failed to get '{}' data", GetSecureItemTypeName(item.type)));
-            // possibility for caller to cleanup data
-            item.pHandler->CleanupSecureData();
-        }
-        // encrypt data using XChaCha20-Poly1305 construction
-        unsigned long long nEncSize = 0;
-        encrypted_data.resize(item.data.size() + crypto_aead_xchacha20poly1305_ietf_ABYTES);
-        if (crypto_aead_xchacha20poly1305_ietf_encrypt(encrypted_data.data(), &nEncSize,
-                                                       item.data.data(), item.data.size(), nullptr, 0, nullptr, item.nonce.data(), pw.p) != 0)
-            throw runtime_error(fmt::format("Failed to encrypt '{}' data", GetSecureItemTypeName(item.type)));
-        const auto szTypeName = GetSecureItemTypeName(item.type);
-        const size_t nEncryptedDataSize = encrypted_data.size();
-        const size_t nItemNonceSize = item.nonce.size();
-        jItems.push_back({
-            {"type", szTypeName},
-            {"nonce", std::move(item.nonce)},
-            {"data", std::move(encrypted_data)}
-        });
-        nJsonSecureSize += 50 + strlen(szTypeName) + nItemNonceSize + nEncryptedDataSize;
+        jSecure.emplace("secure_items", std::move(jItems));
+
+        // serialize as a msgpack to file
+
+#ifdef __EMSCRIPTEN__
+        fwrite(SECURE_CONTAINER_PREFIX, 1, std::char_traits<char>::length(SECURE_CONTAINER_PREFIX), fs);
+#else
+        fs.write(SECURE_CONTAINER_PREFIX, std::char_traits<char>::length(SECURE_CONTAINER_PREFIX));
+#endif
+
+        v_uint8 vOut;
+        const auto nMsgPackReserve = std::max(nJsonPublicSize, nJsonSecureSize);
+        vOut.reserve(nMsgPackReserve);
+        // write json for public items to the file serialized into msgpack format
+        json::to_msgpack(jPublic, vOut);
+        jPublic.clear();
+        // write msgpack size in network byte order (big endian)
+        const uint64_t nMsgPackSize = htobe64(vOut.size());
+
+#ifdef __EMSCRIPTEN__
+        fwrite(&nMsgPackSize, sizeof(nMsgPackSize), 1, fs);
+#else
+        fs.write(reinterpret_cast<const char *>(&nMsgPackSize), sizeof(nMsgPackSize));
+#endif
+
+        // calculate and write hash of the msgpack
+        const auto hash = Hash(vOut.cbegin(), vOut.cend());
+
+#ifdef __EMSCRIPTEN__
+        fwrite(hash.begin(), 1, hash.size(), fs);
+#else
+        hash.Serialize(fs);
+#endif
+
+        // write public items in msgpack format
+#ifdef __EMSCRIPTEN__
+        fwrite(vOut.data(), 1, vOut.size(), fs);
+#else
+        fs.write(reinterpret_cast<const char *>(vOut.data()), vOut.size());
+#endif
+
+        vOut.clear();
+
+        // write json for secure items to the file serialized into msgpack format
+        json::to_msgpack(jSecure, vOut);
+        jSecure.clear();
+
+#ifdef __EMSCRIPTEN__
+        fwrite(vOut.data(), 1, vOut.size(), fs);
+        fclose(fs);
+        syncFS();
+#else
+        fs.write(reinterpret_cast<const char*>(vOut.data()), vOut.size());
+#endif
+    } catch(const std::exception &ex){
+#ifdef __EMSCRIPTEN__
+        fclose(fs);
+        syncFS();
+#endif
+        throw runtime_error(fmt::format("Failed to write secure container to file [{}]. {}", sFilePath.c_str(), ex.what()));
     }
-    jSecure.emplace("secure_items", std::move(jItems));
-
-    // serialize as a msgpack to file
-    fs.write(SECURE_CONTAINER_PREFIX, std::char_traits<char>::length(SECURE_CONTAINER_PREFIX));
-    v_uint8 vOut;
-    const auto nMsgPackReserve = std::max(nJsonPublicSize, nJsonSecureSize);
-    vOut.reserve(nMsgPackReserve);
-    // write json for public items to the file serialized into msgpack format
-    json::to_msgpack(jPublic, vOut);
-    jPublic.clear();
-    // write msgpack size in network byte order (big endian)
-    const uint64_t nMsgPackSize = htobe64(vOut.size());
-    fs.write(reinterpret_cast<const char*>(&nMsgPackSize), sizeof(nMsgPackSize));
-    // calculate and write hash of the msgpack
-    const auto hash = Hash(vOut.cbegin(), vOut.cend());
-    hash.Serialize(fs);
-    // write public items in msgpack format
-    fs.write(reinterpret_cast<const char*>(vOut.data()), vOut.size());
-    vOut.clear();
-
-    // write json for secure items to the file serialized into msgpack format
-    json::to_msgpack(jSecure, vOut);
-    jSecure.clear();
-    fs.write(reinterpret_cast<const char*>(vOut.data()), vOut.size());
-    return true;
-}
-
-/**
- * Change passphrase that was used to encrypt the secure container.
- *
- * \param sFilePath - secure container absolute file path
- * \param sOldPassphrase - old passphrase used to encrypt the secure container
- * \param sNewPassphrase - new passphrase (should not be empty)
- * \return true if successfully changed passphrase and encrypted secure container
- *         throws std::runtime_error in case of any error
- */
-bool CSecureContainer::change_passphrase(const std::string& sFilePath, SecureString&& sOldPassphrase, SecureString&& sNewPassphrase)
-{
-    if (sNewPassphrase.empty())
-        return false;
-    if (!read_from_file(sFilePath, sOldPassphrase))
-    {
-        throw runtime_error(fmt::format("Failed to read secure container file [{}]", sFilePath));
-    }
-    return write_to_file(sFilePath, std::move(sNewPassphrase));
 }
 
 /**
@@ -223,14 +251,27 @@ void CSecureContainer::clear() noexcept
  *         false - if secure container prefix does not match
  *                throws runtime_error if any error occurred while reading secure container public data
  */
-bool CSecureContainer::read_public_items_ex(ifstream& fs, uint64_t& nDataSize)
+bool CSecureContainer::read_public_items_ex(
+#ifdef __EMSCRIPTEN__
+        FILE* fs,
+#else
+        std::ifstream& fs,
+#endif
+        uint64_t& nDataSize)
 {
     using json = nlohmann::json;
     bool bRet = false;
     do
     {
         // get file size
+#ifdef __EMSCRIPTEN__
+        fseek(fs, 0, SEEK_END);
+        auto nFileSize = ftell(fs);
+        fseek(fs, 0, SEEK_SET);
+#else
         const auto nFileSize = fs.tellg();
+        fs.seekg(0);
+#endif
         if (nFileSize < 0)
             break;
         nDataSize = static_cast<uint64_t>(nFileSize);
@@ -239,10 +280,15 @@ bool CSecureContainer::read_public_items_ex(ifstream& fs, uint64_t& nDataSize)
         if (nDataSize < nPrefixLength)
             break;
         char szPrefix[nPrefixLength + 1];
-        fs.seekg(0);
+
+#ifdef __EMSCRIPTEN__
+        if (fread(szPrefix, 1, nPrefixLength, fs) != nPrefixLength)
+            break;
+#else
         fs.read(szPrefix, nPrefixLength);
         if (fs.gcount() != nPrefixLength)
             break;
+#endif
         szPrefix[nPrefixLength] = 0;
         // check if prefix matches
         if (strcmp(szPrefix, SECURE_CONTAINER_PREFIX) != 0)
@@ -255,8 +301,14 @@ bool CSecureContainer::read_public_items_ex(ifstream& fs, uint64_t& nDataSize)
         uint64_t nMsgPackSize = 0;
         v_uint8 vHash;
         vHash.resize(uint256::SIZE);
+
+#ifdef __EMSCRIPTEN__
+        fread(&nMsgPackSize, sizeof(uint64_t), 1, fs);
+        fread(vHash.data(), 1, vHash.size(), fs);
+#else
         fs.read(reinterpret_cast<char*>(&nMsgPackSize), sizeof(uint64_t))
           .read(reinterpret_cast<char*>(vHash.data()), vHash.size());
+#endif
         nDataSize -= sizeof(uint64_t) + uint256::SIZE;
         // convert size to host order
         nMsgPackSize = be64toh(nMsgPackSize);
@@ -265,7 +317,13 @@ bool CSecureContainer::read_public_items_ex(ifstream& fs, uint64_t& nDataSize)
         // read public data from the secure container as msgpack
         v_uint8 v;
         v.resize(nMsgPackSize);
+
+#ifdef __EMSCRIPTEN__
+        fread(v.data(), 1, v.size(), fs);
+#else
         fs.read(reinterpret_cast<char*>(v.data()), v.size());
+#endif
+
         // verify hash
         const auto MsgPackHash = Hash(v.cbegin(), v.cend());
         if (memcmp(&MsgPackHash, vHash.data(), uint256::SIZE) != 0)
@@ -292,32 +350,6 @@ bool CSecureContainer::read_public_items_ex(ifstream& fs, uint64_t& nDataSize)
 }
 
 /**
- * Read from secure container file public data as a msgpack.
- *
- * \param error - error message
- * \param sFilePath - container file path
- * \return true if public items were successfully read from the container
- */
-bool CSecureContainer::read_public_from_file(string &error, const string& sFilePath)
-{
-    clear();
-
-    bool bRet = false;
-    try
-    {
-        ifstream fs(sFilePath, ios::in | ios::ate | ios::binary);
-        fs.exceptions(std::ifstream::failbit | std::ifstream::badbit);
-        uint64_t nDataSize = 0;
-        bRet = read_public_items_ex(fs, nDataSize);
-    }
-    catch (const system_error &ex)
-    {
-        error = fmt::format("Failed to read public items from secure container [{0}]. {1}", sFilePath, ex.code().message());
-    }
-    return bRet;
-}
-
-/**
  * Read from secure container file public and secure data encoded as a msgpack.
  * Decrypt secure data. Throws std::runtime_error exception in case of failure.
  *
@@ -327,27 +359,42 @@ bool CSecureContainer::read_public_from_file(string &error, const string& sFileP
  *         false if file does not contain Pastel secure container
  *         if container data cannot be read or decrypted - throws std::runtime_error
  */
-bool CSecureContainer::read_from_file(const string& sFilePath, const SecureString& sPassphrase)
+void CSecureContainer::read_from_file(const string& sFilePath, const SecureString& sPassphrase)
 {
     using json = nlohmann::json;
-    bool bRet = false;
+    bool bOk = false;
+    string error;
+
+#ifdef __EMSCRIPTEN__
+    initFS();
+            FILE* fs = fopen(sFilePath.c_str(), "rb");
+            if (!fs)
+                throw runtime_error(fmt::format("File [{}] does not exist", sFilePath.c_str()));
+#endif
+
     try
     {
         do
         {
             clear();
-
+#ifndef __EMSCRIPTEN__
             if (!std::filesystem::exists(sFilePath))
                 throw runtime_error(fmt::format("File [{}] does not exist", sFilePath.c_str()));
             ifstream fs(sFilePath, ios::in | ios::ate | ios::binary);
             fs.exceptions(std::ifstream::failbit | std::ifstream::badbit);
+#endif
             v_uint8 v;
             uint64_t nDataSize = 0;
             if (!read_public_items_ex(fs, nDataSize))
                 break;
             // read secure container data as json msgpack
             v.resize(nDataSize);
+
+#ifdef __EMSCRIPTEN__
+            fread(v.data(), 1, v.size(), fs);
+#else
             fs.read(reinterpret_cast<char*>(v.data()), v.size());
+#endif
             json j = json::from_msgpack(v);
             v.clear();
 
@@ -401,221 +448,27 @@ bool CSecureContainer::read_from_file(const string& sFilePath, const SecureStrin
                 item.data.resize(nDecryptedLength);
                 m_vSecureItems.push_back(std::move(item));
             }
-            bRet = true;
+            bOk = true;
         } while (false);
     }
     catch (const std::out_of_range &ex)
     {
-        throw runtime_error(fmt::format("Pastel secure container file format error. {}", ex.what()));
+        error = fmt::format("Pastel secure container file format error. {}", ex.what());
     }
     catch (const secure_container_exception &ex)
     {
-        throw runtime_error(fmt::format("{}", ex.what()));
+        error = fmt::format("{}", ex.what());
     }
     catch (const std::exception &ex)
     {
-        throw runtime_error(fmt::format("Failed to read Pastel secure container file [{0}]. {1}", sFilePath.c_str(), ex.what()));
+        error = fmt::format("Failed to read Pastel secure container file [{0}]. {1}", sFilePath.c_str(), ex.what());
     }
-    return bRet;
-}
 
-/**
- * Validate passphrase via SECURE_ITEM_TYPE::pkey_ed448.
- * Decrypt secure data. Does not throws exceptions
- *
- * \param sFilePath - container file path
- * \param sPassphrase - passphrase in clear text to use for data decryption
- * \return true if password was succesfully validated
- *         false if file does not contain Pastel secure container
- *         if container data cannot be read or decrypted - throws std::runtime_error
- */
-bool CSecureContainer::is_valid_passphrase(const string& sFilePath, const SecureString& sPassphrase)
-{
-    using json = nlohmann::json;
-    bool bRet = false;
-    string error;
-    try
-    {
-        do
-        {
-            clear();
+#ifdef __EMSCRIPTEN__
+    fclose(fs);
+    syncFS();
+#endif
 
-            ifstream fs(sFilePath, ios::in | ios::ate | ios::binary);
-            fs.exceptions(std::ifstream::failbit | std::ifstream::badbit);
-            v_uint8 v;
-            uint64_t nDataSize = 0;
-            if (!read_public_items_ex(fs, nDataSize))
-            {
-                error = "Failed to read public items";
-                break;
-            }
-            // read secure container data as json msgpack
-            v.resize(nDataSize);
-            fs.read(reinterpret_cast<char*>(v.data()), v.size());
-            json j = json::from_msgpack(v);
-            v.clear();
-
-            // read header
-            j.at("version").get_to(m_nVersion);
-            j.at("timestamp").get_to(m_nTimestamp);
-            j.at("encryption").get_to(m_sEncryptionAlgorithm);
-            if (m_sEncryptionAlgorithm != SECURE_CONTAINER_ENCRYPTION)
-            {
-                error = fmt::format("Encryption algorithm '{}' is not supported", m_sEncryptionAlgorithm.c_str());
-                break;
-            }
-
-            CSodiumAutoBuf pw;
-            // allocate secure memory for the key, buffer is reused for all secure items
-            if (!pw.allocate(PWKEY_BUFSUZE))
-            {
-                error = fmt::format("Failed to allocate memory ({} bytes)", PWKEY_BUFSUZE);
-                break;
-            }
-
-            // process encrypted items
-            // read nonce for each item and use it to derive password key from passphrase and
-            // to decrypt data
-            string sType;
-            for (auto &jItem : j.at("secure_items"))
-            {
-                jItem["type"].get_to(sType);
-                secure_item_t item;
-                item.type = GetSecureItemTypeByName(sType);
-                if (item.type == SECURE_ITEM_TYPE::not_defined)
-                {
-                    error = fmt::format("Secure item type '{}' is not supported", sType);
-                    break;
-                }
-                jItem["nonce"].get_to(item.nonce);
-                // encrypted data
-                auto& encrypted_data = jItem["data"].get_binary();
-
-                // derive key from the passphrase
-                if (crypto_pwhash(pw.p, crypto_box_SEEDBYTES,
-                                  sPassphrase.c_str(), sPassphrase.length(), item.nonce.data(),
-                                  crypto_pwhash_OPSLIMIT_INTERACTIVE, crypto_pwhash_MEMLIMIT_INTERACTIVE, crypto_pwhash_ALG_DEFAULT) != 0)
-                {
-                    error = fmt::format("Failed to generate encryption key for the secure item '{}'", GetSecureItemTypeName(item.type));
-                    break;
-                }
-                item.data.resize(encrypted_data.size());
-                unsigned long long nDecryptedLength = 0;
-                if (crypto_aead_xchacha20poly1305_ietf_decrypt(item.data.data(), &nDecryptedLength, nullptr,
-                                                               encrypted_data.data(), encrypted_data.size(), nullptr, 0, item.nonce.data(), pw.p) != 0)
-                {
-                    error = fmt::format("Failed to decrypt secure item '{}' data", sType);
-                    break;
-                }
-                // Only need to read first secure item which has pkey_ed448 type
-                if (item.type == SECURE_ITEM_TYPE::pkey_ed448)
-                    break;
-            }
-            if (!error.empty())
-                break;
-            bRet = true;
-        } while (false);
-    }
-    catch (const std::out_of_range &ex)
-    {
-        error = fmt::format("File format error. {}", ex.what());
-    }
-    catch (const std::exception &ex)
-    {
-        error = fmt::format("{}", sFilePath.c_str(), ex.what());
-    }
-    if (!error.empty())
-        throw runtime_error(fmt::format("Passphrase is invalid. Failed to read the Pastel secure container file [{0}]. {1}\n", sFilePath, error));
-    return bRet;
-}
-
-/**
- * Find secure item in the container by type.
- *
- * \param type - secure item type to find
- * \return
- */
-auto CSecureContainer::find_secure_item(const SECURE_ITEM_TYPE type) noexcept
-{
-    return find_if(m_vSecureItems.begin(), m_vSecureItems.end(), [=](const auto& Item) { return Item.type == type; });
-}
-
-/**
- * Find public item in the container by type.
- *
- * \param type - secure item type to find
- * \return
- */
-auto CSecureContainer::find_public_item(const PUBLIC_ITEM_TYPE type) const noexcept
-{
-    return find_if(m_vPublicItems.cbegin(), m_vPublicItems.cend(), [=](const auto& Item) { return Item.type == type; });
-}
-
-/**
- * Get public data (byte vector) from the container by type.
- *
- * \param type - public item type
- * \param data - public binary data
- * \return true if public item was found in the secure container
- */
-bool CSecureContainer::get_public_data_vector(const PUBLIC_ITEM_TYPE type, v_uint8& data) const noexcept
-{
-    const auto it = find_public_item(type);
-    if (it != m_vPublicItems.cend())
-    {
-        data = it->data;
-        return true;
-    }
-    return false;
-}
-
-/**
- * Get public data (string) from the container by type.
- *
- * \param type - public item type
- * \param sData - public string data
- * \return true if public item was found in the secure container
- */
-bool CSecureContainer::get_public_data(const PUBLIC_ITEM_TYPE type, std::string& sData) const noexcept
-{
-    const auto it = find_public_item(type);
-    if (it != m_vPublicItems.cend())
-    {
-        sData.assign(it->data.cbegin(), it->data.cend());
-        return true;
-    }
-    return false;
-}
-
-/**
- * Extract secure data from the container by type (byte vector).
- *
- * \param type - secure item type
- * \return - secure data in byte vector (moved from storage)
- */
-v_uint8 CSecureContainer::extract_secure_data(const SECURE_ITEM_TYPE type)
-{
-    auto it = find_secure_item(type);
-    if (it != m_vSecureItems.end())
-        return std::move(it->data);
-    return {};
-}
-
-/**
- * Extract secure data from the container by type (string).
- *
- * \param type - secure item type
- * \return - secure data (moved from storage)
- */
-string CSecureContainer::extract_secure_data_string(const SECURE_ITEM_TYPE type)
-{
-    auto it = find_secure_item(type);
-    string sData;
-    if (it != m_vSecureItems.end())
-    {
-        sData.assign(reinterpret_cast<const char *>(it->data.data()), it->data.size());
-        memory_cleanse(it->data.data(), it->data.size());
-        it->data.clear();
-    }
-    return sData;
+    if (!bOk)
+        throw runtime_error(error);
 }

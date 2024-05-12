@@ -18,13 +18,13 @@ Pastel::Pastel() {
     init_and_check_sodium();
 }
 
-string Pastel::CreateNewWallet(NetworkMode mode, const SecureString &password) {
+string Pastel::CreateNewWallet(NetworkMode mode, const string &password) {
     return wrapResponse([&]() {
         return m_HDWallet.SetupNewWallet(mode, password);
     });
 }
 
-string Pastel::CreateWalletFromMnemonic(const string &mnemonic, NetworkMode mode, const SecureString &password) {
+string Pastel::CreateWalletFromMnemonic(const string &mnemonic, NetworkMode mode, const string &password) {
     return wrapResponse([&]() {
         return false;
     });
@@ -51,7 +51,7 @@ string Pastel::ImportWallet(const string &data) {
     });
 }
 
-string Pastel::UnlockWallet(const SecureString &password) {
+string Pastel::UnlockWallet(const string &password) {
     return wrapResponse([&]() {
         m_HDWallet.Unlock(password);
     });
@@ -124,7 +124,7 @@ string Pastel::MakeNewPastelID()
     });
 }
 
-string Pastel::GetPastelID(uint32_t addrIndex, PastelIDType type)
+string Pastel::GetPastelIDByIndex(uint32_t addrIndex, PastelIDType type)
 {
     return wrapResponse([&]() {
         return m_HDWallet.GetPastelID(addrIndex, type);
@@ -169,7 +169,7 @@ string Pastel::VerifyWithLegRoast(const string& lrPubKey, const string& message,
     });
 }
 
-string Pastel::ExportPastelIDKeys(const string& pastelID, SecureString&& passPhrase, const string& sDirPath) {
+string Pastel::ExportPastelIDKeys(const string& pastelID, string passPhrase, const string& sDirPath) {
     return wrapResponse([&]() {
         return m_HDWallet.ExportPastelIDKeys(pastelID, std::move(passPhrase), sDirPath);
     });
@@ -182,22 +182,36 @@ EMSCRIPTEN_BINDINGS(PastelModule) {
         .value("Testnet", NetworkMode::TESTNET)
         .value("Regtest", NetworkMode::REGTEST)
         ;
-    emscripten::enum_<>("PastelIDType")
+    emscripten::enum_<PastelIDType>("PastelIDType")
         .value("PastelID", PastelIDType::PASTELID)
         .value("LegRoast", PastelIDType::LEGROAST)
         ;
     emscripten::class_<Pastel>("Pastel")
         .constructor<>()
+
         .function("CreateNewWallet", &Pastel::CreateNewWallet)
         .function("CreateWalletFromMnemonic", &Pastel::CreateWalletFromMnemonic)
         .function("ExportWallet", &Pastel::ExportWallet)
         .function("ImportWallet", &Pastel::ImportWallet)
         .function("UnlockWallet", &Pastel::UnlockWallet)
         .function("LockWallet", &Pastel::LockWallet)
+
         .function("MakeNewAddress", &Pastel::MakeNewAddress)
         .function("GetAddress", &Pastel::GetAddress)
-        .function("GetAddresses", &Pastel::GetAddresses)
         .function("GetAddressesCount", &Pastel::GetAddressesCount)
+        .function("GetAddresses", &Pastel::GetAddresses)
+        .function("SignWithAddressKey", &Pastel::SignWithAddressKey)
+
+        .function("MakeNewPastelID", &Pastel::MakeNewPastelID)
+        .function("GetPastelIDByIndex", &Pastel::GetPastelIDByIndex)
+        .function("GetPastelID", &Pastel::GetPastelID)
+        .function("GetPastelIDsCount", &Pastel::GetPastelIDsCount)
+        .function("GetPastelIDs", &Pastel::GetPastelIDs)
+        .function("SignWithPastelID", &Pastel::SignWithPastelID)
+        .function("VerifyWithPastelID", &Pastel::VerifyWithPastelID)
+        .function("VerifyWithLegRoast", &Pastel::VerifyWithLegRoast)
+        .function("ExportPastelIDKeys", &Pastel::ExportPastelIDKeys)
+
         .function("GetWalletPubKey", &Pastel::GetWalletPubKey)
         .function("SignWithWalletKey", &Pastel::SignWithWalletKey)
         .function("GetPubKeyAt", &Pastel::GetPubKeyAt)

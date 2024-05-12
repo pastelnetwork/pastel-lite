@@ -234,33 +234,17 @@ public:
 
     // clear the container
     void clear() noexcept;
-    // add secure item to the container (data in a string)
-    void add_secure_item_string(const SECURE_ITEM_TYPE type, const std::string& sData) noexcept;
     // add secure item to the container (data in a byte vector)
     void add_secure_item_vector(const SECURE_ITEM_TYPE type, const v_uint8& vData) noexcept;
     void add_secure_item_vector(const SECURE_ITEM_TYPE type, v_uint8&& vData) noexcept;
-    // add secure item to the container(handler interface to get data)
-    void add_secure_item_handler(const SECURE_ITEM_TYPE type, ISecureDataHandler* pHandler) noexcept;
     // add public item to the container
     void add_public_item(const PUBLIC_ITEM_TYPE type, const std::string& sData) noexcept;
     // Get public data (byte vector) from the container by type
-    bool get_public_data_vector(const PUBLIC_ITEM_TYPE type, v_uint8& data) const noexcept;
-    bool get_public_data(const PUBLIC_ITEM_TYPE type, std::string &sData) const noexcept;
-    // Extract secure data from the container by type (returns byte vector)
-    v_uint8 extract_secure_data(const SECURE_ITEM_TYPE type);
-    // Extract secure data from the container by type (returns string)
-    std::string extract_secure_data_string(const SECURE_ITEM_TYPE type);
 
     // encrypt and write container to file as a msgpack
-    bool write_to_file(const std::string& sFilePath, SecureString&& sPassphrase);
+    void write_to_file(const std::string& sFilePath, SecureString&& sPassphrase);
     // read from secure container file encrypted secure data as a msgpack and decrypt
-    bool read_from_file(const std::string& sFilePath, const SecureString& sPassphrase);
-    // read from secure container file public data as a msgpack
-    bool read_public_from_file(std::string &error, const std::string& sFilePath);
-    // change passphrase that was used to encrypt the secure container
-    bool change_passphrase(const std::string& sFilePath, SecureString&& sOldPassphrase, SecureString&& sNewPassphrase);
-    // validate passphrase from secure container
-    bool is_valid_passphrase(const std::string& sFilePath, const SecureString& sPassphrase);
+    void read_from_file(const std::string& sFilePath, const SecureString& sPassphrase);
 
 private:
     static constexpr size_t PWKEY_BUFSUZE = crypto_box_SEEDBYTES;
@@ -277,7 +261,13 @@ private:
 
     auto find_secure_item(const SECURE_ITEM_TYPE type) noexcept;
     auto find_public_item(const PUBLIC_ITEM_TYPE type) const noexcept;
-    bool read_public_items_ex(std::ifstream& fs, uint64_t& nDataSize);
+    bool read_public_items_ex(
+#ifdef __EMSCRIPTEN__
+            FILE* fs,
+#else
+            std::ifstream& fs,
+#endif
+            uint64_t& nDataSize);
 };
 
     class secure_container_exception : public std::runtime_error 
