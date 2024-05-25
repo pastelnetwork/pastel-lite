@@ -13,25 +13,24 @@
 using namespace std;
 
 class Pastel {
-    map<NetworkMode, CChainParams*> m_Networks;
     CHDWallet m_HDWallet;
 
 public:
     Pastel();
 
     // Wallet functions
-    string CreateNewWallet(NetworkMode mode, const string& password);
-    string CreateWalletFromMnemonic(const string& mnemonic, NetworkMode mode, const string& password);
+    string CreateNewWallet(const string& password);
+    string CreateWalletFromMnemonic(const string& mnemonic, const string& password);
     string ExportWallet();
     string ImportWallet(const string& data);
     string UnlockWallet(const string& password);
     string LockWallet();
 
     // Address functions
-    string MakeNewAddress();
-    string GetAddress(uint32_t addrIndex);
-    string GetAddressesCount();
-    string GetAddresses();
+    string MakeNewAddress(NetworkMode mode = NetworkMode::MAINNET);
+    string GetAddress(uint32_t addrIndex, NetworkMode mode = NetworkMode::MAINNET);
+    string GetAddressesCount(NetworkMode mode = NetworkMode::MAINNET);
+    string GetAddresses(NetworkMode mode = NetworkMode::MAINNET);
     string SignWithAddressKey(const string& address, const string& message, bool fBase64 = false);
 
     // PastelID functions
@@ -50,4 +49,20 @@ public:
     string SignWithWalletKey(string message);
     string GetPubKeyAt(uint32_t addrIndex);     // returns base58 encoded Public Key, w/o prefix and checksum
     string SignWithKeyAt(uint32_t addrIndex, string message);
+};
+
+class PastelSigner {
+
+    string m_pastelIDDir;
+
+public:
+    PastelSigner(const string& pastelID_dir);
+
+    [[nodiscard]] string SignWithPastelID(const string& pastelID, const string& message, const SecureString& password);
+    [[nodiscard]] string SignWithPastelIDBase64(const string& pastelID, const string& messageBase64, const SecureString& password);
+    bool VerifyWithPastelID(const string& pastelID, const string& message, const string& signature);
+    bool VerifyWithPastelIDBase64(const string& pastelID, const string& messageBase64, const string& signature);
+
+private:
+    string getPastelIDKey(const string& pastelID, const SecureString& password);
 };

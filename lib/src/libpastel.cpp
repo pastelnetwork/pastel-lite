@@ -18,13 +18,13 @@ Pastel::Pastel() {
     init_and_check_sodium();
 }
 
-string Pastel::CreateNewWallet(NetworkMode mode, const string &password) {
+string Pastel::CreateNewWallet(const string &password) {
     return wrapResponse([&]() {
-        return m_HDWallet.SetupNewWallet(mode, password);
+        return m_HDWallet.SetupNewWallet(password);
     });
 }
 
-string Pastel::CreateWalletFromMnemonic(const string &mnemonic, NetworkMode mode, const string &password) {
+string Pastel::CreateWalletFromMnemonic(const string &mnemonic, const string &password) {
     return wrapResponse([&]() {
         return false;
     });
@@ -63,27 +63,27 @@ string Pastel::LockWallet() {
     });
 }
 
-string Pastel::MakeNewAddress() {
+string Pastel::MakeNewAddress(NetworkMode mode) {
     return wrapResponse([&]() {
-        return m_HDWallet.MakeNewAddress();
+        return m_HDWallet.MakeNewAddress(mode);
     });
 }
 
-string Pastel::GetAddress(uint32_t addrIndex) {
+string Pastel::GetAddress(uint32_t addrIndex, NetworkMode mode) {
     return wrapResponse([&]() {
-        return m_HDWallet.GetAddress(addrIndex);
+        return m_HDWallet.GetAddress(addrIndex, mode);
     });
 }
 
-string Pastel::GetAddressesCount() {
+string Pastel::GetAddressesCount(NetworkMode mode) {
     return wrapResponse([&]() {
-        return m_HDWallet.GetAddressesCount();
+        return m_HDWallet.GetAddressesCount(mode);
     });
 }
 
-string Pastel::GetAddresses() {
+string Pastel::GetAddresses(NetworkMode mode) {
     return wrapResponse([&]() {
-        return m_HDWallet.GetAddresses();
+        return m_HDWallet.GetAddresses(mode);
     });
 }
 
@@ -180,7 +180,7 @@ EMSCRIPTEN_BINDINGS(PastelModule) {
     emscripten::enum_<NetworkMode>("NetworkMode")
         .value("Mainnet", NetworkMode::MAINNET)
         .value("Testnet", NetworkMode::TESTNET)
-        .value("Regtest", NetworkMode::REGTEST)
+        .value("Devnet", NetworkMode::DEVNET)
         ;
     emscripten::enum_<PastelIDType>("PastelIDType")
         .value("PastelID", PastelIDType::PASTELID)

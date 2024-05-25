@@ -1,4 +1,4 @@
-cmake-build-debug/
+/googletest/
 /build-wasm-debug/
 /build-wasm-release/
 /build-native-debug/

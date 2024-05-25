@@ -11,7 +11,7 @@
 enum class NetworkMode {
     MAINNET = 0,
     TESTNET = 1,
-    REGTEST = 2,
+    DEVNET = 2,
     UNKNOWN = 6
 };
 
@@ -43,10 +43,14 @@ public:
         return m_base58Prefixes[to_integral_type(type)];
     }
 
-    uint32_t bip44CoinType = 0;
+    std::string m_sPastelBurnAddress;
+
+    //these are same for all networks
+    uint32_t bip44CoinType = 4826951;    //0x0049A747; bip44CoinTypeHard => 0x8049A747
     uint32_t walletIDIndex = 0xA0000001;
 
     [[nodiscard]] uint32_t BIP44CoinType() const noexcept { return bip44CoinType; }
+    [[nodiscard]] uint32_t WalletIDIndex() const noexcept { return walletIDIndex; }
 };
 
 class CMainnetParams : public CChainParams {
@@ -54,7 +58,7 @@ public:
     CMainnetParams(){
         m_base58Prefixes[to_integral_type(Base58Type::PUBKEY_ADDRESS)] = {0x0c, 0xe3};
         m_base58Prefixes[to_integral_type(Base58Type::EXT_PUBLIC_KEY)] = {0x04, 0x88, 0xB2, 0x1E};
-        bip44CoinType = 4826951;    //0x0049A747; bip44CoinTypeHard => 0x8049A747
+        m_sPastelBurnAddress = "PtpasteLBurnAddressXXXXXXXXXXbJ5ndd";
     }
 };
 
@@ -63,13 +67,15 @@ public:
     CTestnetParams(){
         m_base58Prefixes[to_integral_type(Base58Type::PUBKEY_ADDRESS)] = {0x1C, 0xEF};
         m_base58Prefixes[to_integral_type(Base58Type::EXT_PUBLIC_KEY)] = {0x04, 0x35, 0x87, 0xCF};
+        m_sPastelBurnAddress = "tPpasteLBurnAddressXXXXXXXXXXX3wy7u";
     }
 };
 
-class CRegtestParams : public CChainParams {
+class CDevnetParams : public CChainParams {
 public:
-    CRegtestParams(){
-        m_base58Prefixes[to_integral_type(Base58Type::PUBKEY_ADDRESS)] = {0x1C, 0xEF};
+    CDevnetParams(){
+        m_base58Prefixes[to_integral_type(Base58Type::PUBKEY_ADDRESS)] = {0x64, 0x1C};
         m_base58Prefixes[to_integral_type(Base58Type::EXT_PUBLIC_KEY)] = {0x04, 0x35, 0x87, 0xCF};
+        m_sPastelBurnAddress = "44oUgmZSL997veFEQDq569wv5tsT6KXf9QY7";
     }
 };

@@ -20,9 +20,7 @@
 using namespace legroast;
 using namespace crypto_helpers;
 
-string CHDWallet::SetupNewWallet(NetworkMode mode, const SecureString &password) {
-    m_NetworkMode = mode;
-    setNetworkParams(mode);
+string CHDWallet::SetupNewWallet(const SecureString &password) {
 
     // Generate new random master key and encrypt it using key derived from password
     string error;
@@ -33,8 +31,7 @@ string CHDWallet::SetupNewWallet(NetworkMode mode, const SecureString &password)
     }
 
     // Generate new random mnemonic seed and encrypt it using master key
-    auto bip44CoinType = m_NetworkParams->BIP44CoinType();
-    MnemonicSeed seed = MnemonicSeed::Random(bip44CoinType, Language::English);
+    MnemonicSeed seed = MnemonicSeed::Random(m_bip44CoinType, Language::English);
     if (!setEncryptedMnemonicSeed(seed, error)) {
         stringstream ss;
         ss << "Failed to set encrypted mnemonic seed: " << error.c_str();
@@ -166,37 +163,34 @@ void CHDWallet::Unlock(const SecureString &strPassphrase) {
     return nullopt;
 }
 
-[[nodiscard]] string CHDWallet::MakeNewAddress() {
-    auto size = m_addressIndexMap.size();
-    return getAddressByIndex(size, true);
-}
-
-[[nodiscard]] string CHDWallet::GetAddress(uint32_t addrIndex) {
-    return getAddressByIndex(addrIndex, false);
-}
-
-[[nodiscard]] string CHDWallet::getAddressByIndex(uint32_t addrIndex, bool bCreateNew) {
-    if (m_indexAddressMap.contains(addrIndex)) {
-        return m_indexAddressMap[addrIndex];
+[[nodiscard]] string CHDWallet::MakeNewAddress(NetworkMode mode) {
+    auto addrIndex = m_addressIndexMap[mode].size();
+    if (m_indexAddressMap[mode].contains(addrIndex)) {
+        return m_indexAddressMap[mode][addrIndex];
     }
-
-    if (!bCreateNew) {
-        throw runtime_error("Address not found");
-    }
-
     auto key = GetAddressKey(addrIndex);
 
     // Get and encode public key
     const auto pubKey = key->GetPubKey();
     const auto keyID = pubKey.GetID();
-    auto strPubKey = encodeAddress(keyID, m_NetworkParams);
-    m_addressIndexMap[strPubKey] = addrIndex;
-    m_indexAddressMap[addrIndex] = strPubKey;
+    auto strPubKey = encodeAddress(keyID, mode);
+    m_addressIndexMap[mode][strPubKey] = addrIndex;
+    m_indexAddressMap[mode][addrIndex] = strPubKey;
     return strPubKey;
 }
 
+[[nodiscard]] string CHDWallet::GetAddress(uint32_t addrIndex, NetworkMode mode) {
+    if (m_indexAddressMap[mode].contains(addrIndex)) {
+        return m_indexAddressMap[mode][addrIndex];
+    }
+    throw runtime_error("Address not found");
+}
 
-[[nodiscard]] string CHDWallet::GetNewLegacyAddress() {
+[[nodiscard]] uint32_t CHDWallet::GetAddressesCount(NetworkMode mode) {
+    return m_addressIndexMap[mode].size();
+}
+
+[[nodiscard]] string CHDWallet::GetNewLegacyAddress(NetworkMode mode) {
     CKey secret;
     secret.MakeNewKey(true);
 
@@ -207,13 +201,13 @@ void CHDWallet::Unlock(const SecureString &strPassphrase) {
 
     // Get and encode public key
     const CKeyID keyID = newKey.GetID();
-    auto strPubKey = encodeAddress(keyID, m_NetworkParams);
+    auto strPubKey = encodeAddress(keyID, mode);
     m_addressMapNonHD[strPubKey] = secret;
     return strPubKey;
 }
 
 [[nodiscard]] optional<CKey> CHDWallet::GetAddressKey(const string &address) {
-    auto addrIndex = m_addressIndexMap[address];
+    auto addrIndex = findAddress(address);
     return GetAddressKey(addrIndex);
 }
 
@@ -223,22 +217,20 @@ void CHDWallet::Unlock(const SecureString &strPassphrase) {
     return key;
 }
 
-[[nodiscard]] vector<string> CHDWallet::GetAddresses() const {
+[[nodiscard]] vector<string> CHDWallet::GetAddresses(NetworkMode mode) {
     vector<string> addresses;
-    addresses.reserve(m_addressIndexMap.size());
-    for (const auto &pair: m_addressIndexMap) {
+    addresses.reserve(m_addressIndexMap[mode].size());
+    for (const auto &pair: m_addressIndexMap[mode]) {
         addresses.push_back(pair.first);
     }
     return addresses;
 }
 
 [[nodiscard]] string CHDWallet::SignWithAddressKey(const string& address, const string& message, bool fBase64){
-    if (!m_addressIndexMap.contains(address)) {
-        throw runtime_error("Address not found");
-    }
+    auto addrIndex = findAddress(address);
     //if (!m_addressMapNonHD.contains(address)) // TODO: support non-HD addresses
 
-    auto key = GetAddressKey(m_addressIndexMap[address]);
+    auto key = GetAddressKey(addrIndex);
     if (!key.has_value()) {
         throw runtime_error("Failed to get account key");
     }
@@ -254,6 +246,19 @@ void CHDWallet::Unlock(const SecureString &strPassphrase) {
         }
     }
     return "";
+}
+
+[[nodiscard]] uint32_t CHDWallet::findAddress(const string& address) {
+    if (m_addressIndexMap[NetworkMode::MAINNET].contains(address)) {
+        return m_addressIndexMap[NetworkMode::MAINNET][address];
+    }
+    if (m_addressIndexMap[NetworkMode::TESTNET].contains(address)) {
+        return m_addressIndexMap[NetworkMode::TESTNET][address];
+    }
+    if (m_addressIndexMap[NetworkMode::DEVNET].contains(address)) {
+        return m_addressIndexMap[NetworkMode::DEVNET][address];
+    }
+    throw runtime_error("Address not found");
 }
 
 [[nodiscard]] optional<CExtKey> CHDWallet::getExtKey(uint32_t addrIndex) const {
@@ -278,33 +283,30 @@ void CHDWallet::Unlock(const SecureString &strPassphrase) {
     if (!seed.has_value()) {
         return nullopt;
     }
-    return AccountKey::MakeAccount(seed.value(), m_NetworkParams->bip44CoinType, 0);
+    return AccountKey::MakeAccount(seed.value(), m_bip44CoinType, 0);
 }
 
-void CHDWallet::setNetworkParams(NetworkMode mode) {
+[[nodiscard]] const v_uint8& CHDWallet::getNetworkPrefix(const NetworkMode mode, const CChainParams::Base58Type type) {
     switch (mode) {
         case NetworkMode::MAINNET:
-            m_NetworkParams = new CMainnetParams();
-            break;
+            return m_mainnetParams.Base58Prefix(type);
         case NetworkMode::TESTNET:
-            m_NetworkParams = new CTestnetParams();
-            break;
-        case NetworkMode::REGTEST:
-            m_NetworkParams = new CRegtestParams();
-            break;
+            return m_testnetParams.Base58Prefix(type);
+        case NetworkMode::DEVNET:
+            return m_devnetParams.Base58Prefix(type);
         default:
             throw runtime_error("Invalid network mode");
     }
 }
 
-string CHDWallet::encodeAddress(const CKeyID &id, const CChainParams *network) noexcept {
-    v_uint8 pubKey = network->Base58Prefix(CChainParams::Base58Type::PUBKEY_ADDRESS);
+string CHDWallet::encodeAddress(const CKeyID &id, const NetworkMode mode) noexcept {
+    v_uint8 pubKey = getNetworkPrefix(mode, CChainParams::Base58Type::PUBKEY_ADDRESS);
     pubKey.insert(pubKey.end(), id.begin(), id.end());
     return EncodeBase58Check(pubKey);
 }
 
-string CHDWallet::encodeExtPubKey(const CExtPubKey &key, const CChainParams *network) noexcept {
-    v_uint8 data = network->Base58Prefix(CChainParams::Base58Type::EXT_PUBLIC_KEY);
+string CHDWallet::encodeExtPubKey(const CExtPubKey &key, const NetworkMode mode) noexcept {
+    v_uint8 data = getNetworkPrefix(mode, CChainParams::Base58Type::EXT_PUBLIC_KEY);
     const size_t size = data.size();
     data.resize(size + BIP32_EXTKEY_SIZE);
     key.Encode(data.data() + size);
@@ -312,11 +314,11 @@ string CHDWallet::encodeExtPubKey(const CExtPubKey &key, const CChainParams *net
     return ret;
 }
 
-CExtPubKey CHDWallet::decodeExtPubKey(const string &str, const CChainParams *network) noexcept {
+CExtPubKey CHDWallet::decodeExtPubKey(const string &str, const NetworkMode mode) noexcept {
     CExtPubKey key;
     v_uint8 data;
     if (DecodeBase58Check(str, data)) {
-        const auto &prefix = network->Base58Prefix(CChainParams::Base58Type::EXT_PUBLIC_KEY);
+        const auto &prefix = getNetworkPrefix(mode, CChainParams::Base58Type::EXT_PUBLIC_KEY);
         if (data.size() == BIP32_EXTKEY_SIZE + prefix.size() && equal(prefix.begin(), prefix.end(), data.begin()))
             key.Decode(data.data() + prefix.size());
     }
@@ -507,11 +509,11 @@ bool CHDWallet::DecryptWithMasterKey(const v_uint8 &encryptedData, const uint256
 }
 
 [[nodiscard]] string CHDWallet::GetWalletPubKey() {
-    return GetPubKeyAt(m_NetworkParams->walletIDIndex);
+    return GetPubKeyAt(m_walletIDIndex);
 }
 
 [[nodiscard]] string CHDWallet::SignWithWalletKey(string message) {
-    return SignWithKeyAt(m_NetworkParams->walletIDIndex, std::move(message));
+    return SignWithKeyAt(m_walletIDIndex, std::move(message));
 }
 
 [[nodiscard]] string CHDWallet::GetPubKeyAt(uint32_t addrIndex) const {
