@@ -11,6 +11,7 @@ void test1() {
 
     std::cout << "==== Addresses ====" << std::endl;
     std::cout << "Create new Address 0: " << lib.MakeNewAddress() << std::endl;
+    std::cout << "Create new Devnet Address 0: " << lib.MakeNewAddress(NetworkMode::DEVNET) << std::endl;
     std::cout << "Create new Address 1: " << lib.MakeNewAddress() << std::endl;
     std::cout << "Get existing Address 0: " << lib.GetAddress(0) << std::endl;
     std::cout << "Get existing Address 1: " << lib.GetAddress(1) << std::endl;
