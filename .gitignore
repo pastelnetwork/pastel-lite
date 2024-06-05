@@ -1,8 +1,8 @@
 /googletest/
-/build-wasm-debug/
-/build-wasm-release/
-/build-native-debug/
-/build-native-release/
+/build-wasm-debug*
+/build-wasm-release*
+/build-native-debug*
+/build-native-release*
 /vcpkg_installed/
 /libpastel.a
 /libpastel_wasm.js

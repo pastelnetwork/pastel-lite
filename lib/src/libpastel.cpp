@@ -175,6 +175,21 @@ string Pastel::ExportPastelIDKeys(const string& pastelID, string passPhrase, con
     });
 }
 
+// Transaction functions
+string Pastel::CreateSendToTransaction(NetworkMode mode,
+                                       const vector<pair<string, CAmount>>& sendTo, const string& sendFrom,
+                                       tnx_outputs& utxos, const uint32_t nHeight, int nExpiryHeight) {
+
+    SendToTransactionBuilder sendToTransactionBuilder(mode, nHeight);
+    if (nExpiryHeight > 0)
+        sendToTransactionBuilder.SetExpiration(nExpiryHeight);
+
+    return wrapResponse([&]() {
+        return sendToTransactionBuilder.Create(sendTo, sendFrom, utxos);
+    });
+}
+
+
 #ifdef __EMSCRIPTEN__
 EMSCRIPTEN_BINDINGS(PastelModule) {
     emscripten::enum_<NetworkMode>("NetworkMode")

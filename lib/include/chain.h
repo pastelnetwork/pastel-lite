@@ -5,6 +5,10 @@
 
 #include <cstdint>
 #include <map>
+#include <memory>
+#include <cassert>
+
+#include "key_constants.h"
 #include "vector_types.h"
 #include "enum_util.h"
 
@@ -20,29 +24,25 @@ enum class PastelIDType {
     LEGROAST = 1
 };
 
-class CChainParams{
+class CBaseKeyConstants : public KeyConstants
+{
 public:
-    enum struct Base58Type : uint32_t
-    {
-        PUBKEY_ADDRESS = 0,
-        SCRIPT_ADDRESS,
-        SECRET_KEY,
-        EXT_PUBLIC_KEY,
-        EXT_SECRET_KEY,
-
-        ZCPAYMENT_ADDRESS,
-        ZCSPENDING_KEY,
-        ZCVIEWING_KEY,
-
-        MAX_BASE58_TYPES
-    };
-    v_uint8 m_base58Prefixes[to_integral_type(Base58Type::MAX_BASE58_TYPES)];
-
-    [[nodiscard]] const v_uint8& Base58Prefix(const Base58Type type) const noexcept
+    const v_uint8& Base58Prefix(const Base58Type type) const noexcept override
     {
         return m_base58Prefixes[to_integral_type(type)];
     }
+    const std::string& Bech32HRP(const Bech32Type type) const noexcept override
+    {
+        return m_bech32HRPs[to_integral_type(type)];
+    }
 
+protected:
+    v_uint8 m_base58Prefixes[to_integral_type(Base58Type::MAX_BASE58_TYPES)];
+    std::string m_bech32HRPs[to_integral_type(Bech32Type::MAX_BECH32_TYPES)];
+};
+
+class CChainParams : public CBaseKeyConstants{
+public:
     std::string m_sPastelBurnAddress;
 
     //these are same for all networks
@@ -79,3 +79,6 @@ public:
         m_sPastelBurnAddress = "44oUgmZSL997veFEQDq569wv5tsT6KXf9QY7";
     }
 };
+
+const CChainParams& GetChainParams(const NetworkMode mode);
+

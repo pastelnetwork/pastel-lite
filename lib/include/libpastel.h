@@ -8,6 +8,8 @@
 #include <types.h>
 
 #include "chain.h"
+#include "transaction/amount.h"
+#include "rawtransaction.h"
 #include "hd_wallet.h"
 
 using namespace std;
@@ -49,6 +51,11 @@ public:
     string SignWithWalletKey(string message);
     string GetPubKeyAt(uint32_t addrIndex);     // returns base58 encoded Public Key, w/o prefix and checksum
     string SignWithKeyAt(uint32_t addrIndex, string message);
+
+    // Transaction functions
+    string CreateSendToTransaction(NetworkMode mode,
+                                   const vector<pair<string, CAmount>>& sendTo, const string& sendFrom,
+                                   tnx_outputs& utxos, const uint32_t nHeight, int nExpiryHeight = 0);
 };
 
 class PastelSigner {

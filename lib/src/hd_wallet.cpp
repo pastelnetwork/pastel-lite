@@ -17,6 +17,8 @@
 #include "pastelid/legroast.h"
 #include "pastelid/common.h"
 
+#include "transaction/transaction.h"
+
 using namespace legroast;
 using namespace crypto_helpers;
 

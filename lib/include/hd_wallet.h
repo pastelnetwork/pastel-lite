@@ -148,7 +148,6 @@ private:
     [[nodiscard]] optional<CExtKey> getExtKey(uint32_t addrIndex) const;
 
     [[nodiscard]] uint32_t findAddress(const string& address);
-    [[nodiscard]] string getAddressByIndex(uint32_t addrIndex, bool bCreateNew = false);
     [[nodiscard]] optional<AccountKey> getAccountKey() const noexcept;
 
     [[nodiscard]] const v_uint8& getNetworkPrefix(const NetworkMode mode, const CChainParams::Base58Type type);
