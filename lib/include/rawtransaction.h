@@ -47,8 +47,10 @@ protected:
 
     size_t m_numOutputs = 0;
 
+    void signTransaction();
+    string encodeHexTx();
+
     void setChangeOutput(const CAmount nChange);
-    string encodeHexTx(const CTransaction& tx);
 };
 
 class SendToTransactionBuilder : public TransactionBuilder {

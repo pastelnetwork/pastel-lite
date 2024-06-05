@@ -17,7 +17,7 @@ const string MINOR_CURRENCY_UNIT = "patoshis";
 CFeeRate::CFeeRate(const CAmount nFeePaidPerK, size_t nSize)
 {
     if (nSize > 0)
-        m_nPatoshisPerK = min(nFeePaidPerK * 1000 / nSize, numeric_limits<uint64_t>::max() / MAX_BLOCK_SIZE);
+        m_nPatoshisPerK = std::min(static_cast<uint64_t>(nFeePaidPerK) * 1000 / nSize, numeric_limits<uint64_t>::max() / MAX_BLOCK_SIZE);
     else
         m_nPatoshisPerK = 0;
 }

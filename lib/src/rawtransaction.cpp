@@ -75,7 +75,8 @@ string TransactionBuilder::Create(const sendto_addresses& sendTo, const string& 
 
     setOutputs(sendTo);
     setInputs(utxos);
-    return encodeHexTx(m_mtx);
+    signTransaction();
+    return encodeHexTx();
 }
 
 void TransactionBuilder::setInputs(tnx_outputs& utxos)
@@ -192,10 +193,48 @@ void TransactionBuilder::setChangeOutput(const CAmount nChange)
     m_mtx.vout[m_numOutputs].scriptPubKey = GetScriptForDestination(destination);
 }
 
-string TransactionBuilder::encodeHexTx(const CTransaction& tx)
+void TransactionBuilder::signTransaction()
+{
+/*
+    vector<future<void>> futures;
+    futures.reserve(tx_out.vin.size());
+    mutex m;
+    atomic_bool bSignError(false);
+
+    for (uint32_t i = 0; i < tx_out.vin.size(); i++)
+    {
+        futures.emplace_back(async(launch::async, [&](uint32_t i)
+        {
+            try
+            {
+                const auto& output = m_vSelectedOutputs[i];
+                const auto& txOut = output.tx->vout[output.i];
+                const CScript& prevPubKey = txOut.scriptPubKey;
+                const CAmount prevAmount = txOut.nValue;
+                SignatureData sigdata;
+                if (!ProduceSignature(
+                        MutableTransactionSignatureCreator(pwalletMain, &tx_out, i, prevAmount, to_integral_type(SIGHASH::ALL)),
+                        prevPubKey, sigdata, m_consensusBranchId))
+                    throw runtime_error("Failed to produce a signature script");
+                UpdateTransaction(tx_out, i, sigdata);
+            } catch (const exception& e)
+            {
+                lock_guard<mutex> lock(m);
+                bSignError = true;
+                m_error = strprintf("Error signing transaction input #%u. %s", i, e.what());
+            }
+        }, i));
+    }
+    for (auto &f: futures)
+        f.get();
+    return !bSignError;
+*/
+}
+
+string TransactionBuilder::encodeHexTx()
 {
     CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
-    ssTx << tx;
+    ssTx << m_mtx;
     return HexStr(ssTx.begin(), ssTx.end());
 }
 
