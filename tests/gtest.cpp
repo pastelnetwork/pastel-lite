@@ -80,13 +80,6 @@ TEST_F(PastelTest, GetAddresses) {
     EXPECT_FALSE(result.empty());
 }
 
-TEST_F(PastelTest, SignWithAddressKey) {
-    std::string address = pastel.MakeNewAddress();
-    std::string message = "message";
-    std::string result = pastel.SignWithAddressKey(address, message);
-    EXPECT_FALSE(result.empty());
-}
-
 // PastelID function tests
 TEST_F(PastelTest, MakeNewPastelID) {
     std::string result = pastel.MakeNewPastelID();

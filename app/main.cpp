@@ -142,7 +142,7 @@ int main() {
         {"PtWW6LP6dLLgi5WqTYi6C7NwiesVgeRRV18", 500}
     };
 
-    auto utxos = tnx_outputs{
+    auto utxos = v_utxos{
         {"PtTDUHythfRfXHh63yzyiGDid4TZj2P76Zd", "76a91402301e7752a9d3170dbecefd72010e9f3f9707a388ac", 0, 200},
         {"PtnsSy2e2AQM1ZBM8fxpSXPrUQGFfkiYzyJ", "76a914d9c9353a034ca3f4ff703f89ab4e1b6fed6bfeb488ac", 0, 410},
     };

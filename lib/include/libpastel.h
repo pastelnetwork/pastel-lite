@@ -31,9 +31,8 @@ public:
     // Address functions
     string MakeNewAddress(NetworkMode mode = NetworkMode::MAINNET);
     string GetAddress(uint32_t addrIndex, NetworkMode mode = NetworkMode::MAINNET);
-    string GetAddressesCount(NetworkMode mode = NetworkMode::MAINNET);
+    string GetAddressesCount();
     string GetAddresses(NetworkMode mode = NetworkMode::MAINNET);
-    string SignWithAddressKey(const string& address, const string& message, bool fBase64 = false);
 
     // PastelID functions
     string MakeNewPastelID();
@@ -55,7 +54,7 @@ public:
     // Transaction functions
     string CreateSendToTransaction(NetworkMode mode,
                                    const vector<pair<string, CAmount>>& sendTo, const string& sendFrom,
-                                   tnx_outputs& utxos, const uint32_t nHeight, int nExpiryHeight = 0);
+                                   v_utxos& utxos, const uint32_t nHeight, int nExpiryHeight = 0);
 };
 
 class PastelSigner {

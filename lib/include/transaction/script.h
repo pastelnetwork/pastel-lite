@@ -34,7 +34,6 @@ v_uint8 ToByteVector(const T& in)
     return v_uint8(in.begin(), in.end());
 }
 
-// insightexplorer, there may be more script types in the future
 typedef enum class _ScriptType : int
 {
     UNKNOWN = 0,

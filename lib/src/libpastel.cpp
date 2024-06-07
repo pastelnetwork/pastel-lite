@@ -75,21 +75,15 @@ string Pastel::GetAddress(uint32_t addrIndex, NetworkMode mode) {
     });
 }
 
-string Pastel::GetAddressesCount(NetworkMode mode) {
+string Pastel::GetAddressesCount() {
     return wrapResponse([&]() {
-        return m_HDWallet.GetAddressesCount(mode);
+        return m_HDWallet.GetAddressesCount();
     });
 }
 
 string Pastel::GetAddresses(NetworkMode mode) {
     return wrapResponse([&]() {
         return m_HDWallet.GetAddresses(mode);
-    });
-}
-
-string Pastel::SignWithAddressKey(const string& address, const string& message, bool fBase64){
-    return wrapResponse([&]() {
-        return m_HDWallet.SignWithAddressKey(address, message, fBase64);
     });
 }
 
@@ -178,14 +172,14 @@ string Pastel::ExportPastelIDKeys(const string& pastelID, string passPhrase, con
 // Transaction functions
 string Pastel::CreateSendToTransaction(NetworkMode mode,
                                        const vector<pair<string, CAmount>>& sendTo, const string& sendFrom,
-                                       tnx_outputs& utxos, const uint32_t nHeight, int nExpiryHeight) {
+                                       v_utxos& utxos, const uint32_t nHeight, int nExpiryHeight) {
 
     SendToTransactionBuilder sendToTransactionBuilder(mode, nHeight);
     if (nExpiryHeight > 0)
         sendToTransactionBuilder.SetExpiration(nExpiryHeight);
 
     return wrapResponse([&]() {
-        return sendToTransactionBuilder.Create(sendTo, sendFrom, utxos);
+        return sendToTransactionBuilder.Create(sendTo, sendFrom, utxos, m_HDWallet);
     });
 }
 
@@ -215,7 +209,6 @@ EMSCRIPTEN_BINDINGS(PastelModule) {
         .function("GetAddress", &Pastel::GetAddress)
         .function("GetAddressesCount", &Pastel::GetAddressesCount)
         .function("GetAddresses", &Pastel::GetAddresses)
-        .function("SignWithAddressKey", &Pastel::SignWithAddressKey)
 
         .function("MakeNewPastelID", &Pastel::MakeNewPastelID)
         .function("GetPastelIDByIndex", &Pastel::GetPastelIDByIndex)

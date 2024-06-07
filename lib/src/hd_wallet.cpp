@@ -5,6 +5,7 @@
 #include <sodium.h>
 #include <botan/hash.h>
 
+#include "key_io.h"
 #include "hd_wallet.h"
 #include "utiltime.h"
 #include "base58.h"
@@ -147,7 +148,7 @@ void CHDWallet::Unlock(const SecureString &strPassphrase) {
         throw runtime_error("Failed to decrypt master key");
 }
 
-[[nodiscard]] optional<MnemonicSeed> CHDWallet::getDecryptedMnemonicSeed() const noexcept {
+[[nodiscard]] optional<MnemonicSeed> CHDWallet::getDecryptedMnemonicSeed() noexcept {
     if (m_encryptedMnemonicSeed.second.empty()) {
         return nullopt;
     }
@@ -166,30 +167,31 @@ void CHDWallet::Unlock(const SecureString &strPassphrase) {
 }
 
 [[nodiscard]] string CHDWallet::MakeNewAddress(NetworkMode mode) {
-    auto addrIndex = m_addressIndexMap[mode].size();
-    if (m_indexAddressMap[mode].contains(addrIndex)) {
-        return m_indexAddressMap[mode][addrIndex];
+    auto addrIndex = m_keyIdIndexMap.size();
+    if (m_indexKeyIdMap.contains(addrIndex)) {
+        return encodeAddress(m_indexKeyIdMap[addrIndex], mode);
     }
-    auto key = GetAddressKey(addrIndex);
+    auto key = GetKey(addrIndex);
 
     // Get and encode public key
     const auto pubKey = key->GetPubKey();
     const auto keyID = pubKey.GetID();
-    auto strPubKey = encodeAddress(keyID, mode);
-    m_addressIndexMap[mode][strPubKey] = addrIndex;
-    m_indexAddressMap[mode][addrIndex] = strPubKey;
-    return strPubKey;
+
+    m_keyIdIndexMap[keyID] = addrIndex;
+    m_indexKeyIdMap[addrIndex] = keyID;
+
+    return encodeAddress(keyID, mode);
 }
 
 [[nodiscard]] string CHDWallet::GetAddress(uint32_t addrIndex, NetworkMode mode) {
-    if (m_indexAddressMap[mode].contains(addrIndex)) {
-        return m_indexAddressMap[mode][addrIndex];
+    if (m_indexKeyIdMap.contains(addrIndex)) {
+        return encodeAddress(m_indexKeyIdMap[addrIndex], mode);
     }
     throw runtime_error("Address not found");
 }
 
-[[nodiscard]] uint32_t CHDWallet::GetAddressesCount(NetworkMode mode) {
-    return m_addressIndexMap[mode].size();
+[[nodiscard]] uint32_t CHDWallet::GetAddressesCount() {
+    return m_keyIdIndexMap.size();
 }
 
 [[nodiscard]] string CHDWallet::GetNewLegacyAddress(NetworkMode mode) {
@@ -203,67 +205,43 @@ void CHDWallet::Unlock(const SecureString &strPassphrase) {
 
     // Get and encode public key
     const CKeyID keyID = newKey.GetID();
-    auto strPubKey = encodeAddress(keyID, mode);
-    m_addressMapNonHD[strPubKey] = secret;
-    return strPubKey;
+    auto strAddress = encodeAddress(keyID, mode);
+    m_addressMapNonHD[strAddress] = secret;
+    return strAddress;
 }
 
-[[nodiscard]] optional<CKey> CHDWallet::GetAddressKey(const string &address) {
-    auto addrIndex = findAddress(address);
-    return GetAddressKey(addrIndex);
+[[nodiscard]] vector<string> CHDWallet::GetAddresses(NetworkMode mode) {
+    vector<string> addresses;
+    addresses.reserve(m_keyIdIndexMap.size());
+    for (const auto &pair: m_keyIdIndexMap) {
+        addresses.push_back(encodeAddress(pair.first, mode));
+    }
+    return addresses;
 }
 
-[[nodiscard]] optional<CKey> CHDWallet::GetAddressKey(uint32_t addrIndex) const {
+[[nodiscard]] optional<CPubKey> CHDWallet::GetPubKey(const CKeyID& keyID) {
+    if (m_keyIdIndexMap.contains(keyID)) {
+        auto key = GetKey(m_keyIdIndexMap[keyID]);
+        if (key.has_value())
+            return key->GetPubKey();
+    }
+    return nullopt;
+}
+
+[[nodiscard]] optional<CKey> CHDWallet::GetKey(const CKeyID& keyID) {
+    if (m_keyIdIndexMap.contains(keyID)) {
+        return GetKey(m_keyIdIndexMap[keyID]);
+    }
+    return nullopt;
+}
+
+[[nodiscard]] optional<CKey> CHDWallet::GetKey(uint32_t addrIndex) {
     auto extKey = getExtKey(addrIndex);
     auto key = extKey.value().key;
     return key;
 }
 
-[[nodiscard]] vector<string> CHDWallet::GetAddresses(NetworkMode mode) {
-    vector<string> addresses;
-    addresses.reserve(m_addressIndexMap[mode].size());
-    for (const auto &pair: m_addressIndexMap[mode]) {
-        addresses.push_back(pair.first);
-    }
-    return addresses;
-}
-
-[[nodiscard]] string CHDWallet::SignWithAddressKey(const string& address, const string& message, bool fBase64){
-    auto addrIndex = findAddress(address);
-    //if (!m_addressMapNonHD.contains(address)) // TODO: support non-HD addresses
-
-    auto key = GetAddressKey(addrIndex);
-    if (!key.has_value()) {
-        throw runtime_error("Failed to get account key");
-    }
-
-    uint256 hash;
-    CHash256().Write((unsigned char *) message.data(), message.size()).Finalize(hash.begin());
-    v_uint8 vchSig;
-    if (key.value().Sign(hash, vchSig)) {
-        if (fBase64) {
-            return Botan::base64_encode(vchSig);
-        } else {
-            return string(vchSig.begin(), vchSig.end());
-        }
-    }
-    return "";
-}
-
-[[nodiscard]] uint32_t CHDWallet::findAddress(const string& address) {
-    if (m_addressIndexMap[NetworkMode::MAINNET].contains(address)) {
-        return m_addressIndexMap[NetworkMode::MAINNET][address];
-    }
-    if (m_addressIndexMap[NetworkMode::TESTNET].contains(address)) {
-        return m_addressIndexMap[NetworkMode::TESTNET][address];
-    }
-    if (m_addressIndexMap[NetworkMode::DEVNET].contains(address)) {
-        return m_addressIndexMap[NetworkMode::DEVNET][address];
-    }
-    throw runtime_error("Address not found");
-}
-
-[[nodiscard]] optional<CExtKey> CHDWallet::getExtKey(uint32_t addrIndex) const {
+[[nodiscard]] optional<CExtKey> CHDWallet::getExtKey(uint32_t addrIndex) {
     if (IsLocked()) {
         throw runtime_error("Wallet is locked");
     }
@@ -280,7 +258,7 @@ void CHDWallet::Unlock(const SecureString &strPassphrase) {
     return extKey;
 }
 
-[[nodiscard]] optional<AccountKey> CHDWallet::getAccountKey() const noexcept {
+[[nodiscard]] optional<AccountKey> CHDWallet::getAccountKey() noexcept {
     auto seed = getDecryptedMnemonicSeed();
     if (!seed.has_value()) {
         return nullopt;
@@ -288,7 +266,7 @@ void CHDWallet::Unlock(const SecureString &strPassphrase) {
     return AccountKey::MakeAccount(seed.value(), m_bip44CoinType, 0);
 }
 
-[[nodiscard]] const v_uint8& CHDWallet::getNetworkPrefix(const NetworkMode mode, const CChainParams::Base58Type type) {
+[[nodiscard]] const v_uint8& CHDWallet::getNetworkPrefix(NetworkMode mode, const CChainParams::Base58Type type) {
     switch (mode) {
         case NetworkMode::MAINNET:
             return m_mainnetParams.Base58Prefix(type);
@@ -301,13 +279,22 @@ void CHDWallet::Unlock(const SecureString &strPassphrase) {
     }
 }
 
-string CHDWallet::encodeAddress(const CKeyID &id, const NetworkMode mode) noexcept {
+string CHDWallet::encodeAddress(const CKeyID &id, NetworkMode mode) noexcept {
     v_uint8 pubKey = getNetworkPrefix(mode, CChainParams::Base58Type::PUBKEY_ADDRESS);
     pubKey.insert(pubKey.end(), id.begin(), id.end());
     return EncodeBase58Check(pubKey);
 }
 
-string CHDWallet::encodeExtPubKey(const CExtPubKey &key, const NetworkMode mode) noexcept {
+optional<CKeyID> CHDWallet::decodeAddress(const string& address, NetworkMode mode) noexcept {
+    KeyIO keyIO(GetChainParams(mode));
+    auto destination = keyIO.DecodeDestination(address);
+    if (IsKeyDestination(destination)){
+        return std::get<CKeyID>(destination);
+    }
+    return nullopt;
+}
+
+string CHDWallet::encodeExtPubKey(const CExtPubKey &key, NetworkMode mode) noexcept {
     v_uint8 data = getNetworkPrefix(mode, CChainParams::Base58Type::EXT_PUBLIC_KEY);
     const size_t size = data.size();
     data.resize(size + BIP32_EXTKEY_SIZE);
@@ -316,7 +303,7 @@ string CHDWallet::encodeExtPubKey(const CExtPubKey &key, const NetworkMode mode)
     return ret;
 }
 
-CExtPubKey CHDWallet::decodeExtPubKey(const string &str, const NetworkMode mode) noexcept {
+CExtPubKey CHDWallet::decodeExtPubKey(const string &str, NetworkMode mode) noexcept {
     CExtPubKey key;
     v_uint8 data;
     if (DecodeBase58Check(str, data)) {
@@ -329,13 +316,13 @@ CExtPubKey CHDWallet::decodeExtPubKey(const string &str, const NetworkMode mode)
 
 v_uint8 CHDWallet::makePastelIDSeed(uint32_t addrIndex, PastelIDType type) {
     try {
-        auto addressKey1 = GetAddressKey(addrIndex);
+        auto addressKey1 = GetKey(addrIndex);
         if (!addressKey1.has_value()) {
             throw runtime_error(fmt::format("Failed to get key at index {}", addrIndex));
         }
         auto privateKey1 = addressKey1.value().GetPrivKey();
         auto addrIndex2 = HARDENED_KEY_LIMIT + addrIndex;
-        auto addressKey2 = GetAddressKey(addrIndex2);
+        auto addressKey2 = GetKey(addrIndex2);
         if (!addressKey2.has_value()) {
             throw runtime_error(fmt::format("Failed to get key at index {}", addrIndex2));
         }
@@ -441,7 +428,7 @@ string CHDWallet::GetPastelID(const string &pastelID, PastelIDType type) {
     throw runtime_error("PastelID key not found");
 }
 
-[[nodiscard]] vector<string> CHDWallet::GetPastelIDs() const {
+[[nodiscard]] vector<string> CHDWallet::GetPastelIDs() {
     vector<string> pastelIDs;
     pastelIDs.reserve(m_pastelIDIndexMap.size() + m_externalPastelIDs.size());
     for (const auto &pair: m_pastelIDIndexMap) {
@@ -490,7 +477,7 @@ void CHDWallet::ExportPastelIDKeys(const string& pastelID, SecureString&& passPh
                                     pastelID, legRoastPubKey, keyBufPastelID, keyBufLegRoast);
 }
 
-bool CHDWallet::EncryptWithMasterKey(const v_uint8 &data, const uint256 &nIV, v_uint8 &encryptedData) const {
+bool CHDWallet::EncryptWithMasterKey(const v_uint8 &data, const uint256 &nIV, v_uint8 &encryptedData) {
     if (IsLocked()) {
         throw runtime_error("Wallet is locked");
     }
@@ -500,7 +487,7 @@ bool CHDWallet::EncryptWithMasterKey(const v_uint8 &data, const uint256 &nIV, v_
     return true;
 }
 
-bool CHDWallet::DecryptWithMasterKey(const v_uint8 &encryptedData, const uint256 &nIV, v_uint8 &data) const {
+bool CHDWallet::DecryptWithMasterKey(const v_uint8 &encryptedData, const uint256 &nIV, v_uint8 &data) {
     if (IsLocked()) {
         throw runtime_error("Wallet is locked");
     }
@@ -518,8 +505,8 @@ bool CHDWallet::DecryptWithMasterKey(const v_uint8 &encryptedData, const uint256
     return SignWithKeyAt(m_walletIDIndex, std::move(message));
 }
 
-[[nodiscard]] string CHDWallet::GetPubKeyAt(uint32_t addrIndex) const {
-    auto key = GetAddressKey(addrIndex);
+[[nodiscard]] string CHDWallet::GetPubKeyAt(uint32_t addrIndex) {
+    auto key = GetKey(addrIndex);
     if (!key.has_value()) {
         throw runtime_error("Failed to get key");
     }
@@ -528,7 +515,7 @@ bool CHDWallet::DecryptWithMasterKey(const v_uint8 &encryptedData, const uint256
 }
 
 [[nodiscard]] string CHDWallet::SignWithKeyAt(uint32_t addrIndex, string message) {
-    auto key = GetAddressKey(addrIndex);
+    auto key = GetKey(addrIndex);
     if (!key.has_value()) {
         throw runtime_error("Failed to get account key");
     }

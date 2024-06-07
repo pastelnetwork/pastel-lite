@@ -10,10 +10,11 @@
 #include "standard.h"
 #include "transaction/amount.h"
 #include "transaction/transaction.h"
+#include "hd_wallet.h"
 
 using namespace std;
 
-struct COutput
+struct utxo
 {
     string address;
     string txid;
@@ -21,36 +22,37 @@ struct COutput
     CAmount value;
 };
 
-typedef vector<COutput> tnx_outputs;
+typedef vector<utxo> v_utxos;
 typedef vector<pair<string, CAmount>> sendto_addresses;
+typedef map<string, CScript> addr_pubkeys;
+
 
 class TransactionBuilder{
-    TransactionBuilder() = delete;
-
 public:
-    TransactionBuilder(NetworkMode mode, const uint32_t nHeight);
+    TransactionBuilder() = delete;
+    TransactionBuilder(NetworkMode mode, uint32_t nHeight);
+
     void SetExpiration(int nExpiryHeight);
-    string Create(const sendto_addresses& sendTo, const string& sendFrom, tnx_outputs& utxos);
+    string Create(const sendto_addresses& sendTo, const string& sendFrom, v_utxos& utxos, CHDWallet& hdWallet);
 
 protected:
     virtual void setOutputs(const sendto_addresses& sendTo) = 0;
-    virtual void setInputs(tnx_outputs& utxos);
+    virtual void setInputs(v_utxos& utxos);
 
     CMutableTransaction m_mtx;
     const CChainParams& m_Params;
-    string m_sFromAddress;
-    optional<CTxDestination> m_fromAddress;
+    optional<string> m_sFromAddress;
     CAmount m_nAllSpentAmountInPat = 0;
 
-    std::vector<CScript> m_vOutScripts;
-    tnx_outputs m_vSelectedOutputs;
-
+    v_utxos m_vSelectedUTXOs;
+    addr_pubkeys m_mInputPubKeys;
     size_t m_numOutputs = 0;
 
-    void signTransaction();
+    void signTransaction(CHDWallet& hdWallet);
     string encodeHexTx();
 
-    void setChangeOutput(const CAmount nChange);
+    void setChangeOutput(CAmount nChange);
+    void validateAddress(const string& address);
 };
 
 class SendToTransactionBuilder : public TransactionBuilder {
@@ -59,4 +61,7 @@ public:
 
 protected:
     void setOutputs(const sendto_addresses& sendTo) override;
+
+private:
+    std::vector<CScript> m_vOutScripts;
 };

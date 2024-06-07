@@ -37,7 +37,7 @@ static constexpr uint32_t MAX_DATA_SIZE = 0x02000000;       // 33'554'432
 static constexpr uint32_t MAX_CONTAINER_SIZE = 0x100000;     // 1'048'576
 static constexpr uint8_t PROTECTED_SERIALIZE_MARKER = 0x55; // 01010101
 
-typedef enum class _PROTECTED_DATA_TYPE : uint8_t
+enum class PROTECTED_DATA_TYPE : uint8_t
 {
     PAIR_KEY = 0,
     PAIR_VALUE = 1,
@@ -47,7 +47,7 @@ typedef enum class _PROTECTED_DATA_TYPE : uint8_t
     SET_ITEM = 5,
     LIST = 6,
     LIST_ITEM = 7,
-} PROTECTED_DATA_TYPE;
+};
 
 class unexpected_serialization_version : public std::runtime_error
 {

@@ -61,20 +61,25 @@ if (NOT EMSCRIPTEN)
     FetchContent_MakeAvailable(fmt)
 
     # Botan
-    check_and_add_external_project(
+    set(BOTAN_LIB_DIR "${CMAKE_BINARY_DIR}/libbotan")
+    ExternalProject_Add(
             libbotan
-            https://github.com/randombit/botan.git
-            master
-            ${CMAKE_BINARY_DIR}/libbotan
-            ""
-            ./configure.py --prefix=${CMAKE_BINARY_DIR}/libbotan --disable-shared-library --minimized-build --enable-modules=auto_rng,system_rng,hash,shake,shake_xof,sha3,ed448,pbkdf2,hmac,x448,base64,sha2_32,sha2_64
-            make
-            make install
+            GIT_REPOSITORY https://github.com/randombit/botan.git
+            GIT_TAG master
+            PREFIX ${BOTAN_LIB_DIR}
+            BUILD_IN_SOURCE 1
+            CONFIGURE_COMMAND ./configure.py --prefix=${BOTAN_LIB_DIR} --disable-shared-library --minimized-build --enable-modules=auto_rng,system_rng,hash,shake,shake_xof,sha3,ed448,pbkdf2,hmac,x448,base64,sha2_32,sha2_64
+            BUILD_COMMAND make
+            INSTALL_COMMAND make install
+            LOG_DOWNLOAD ON
+            LOG_BUILD ON
+            LOG_INSTALL ON
     )
-    add_custom_target(botan ALL
-        DEPENDS ${CMAKE_BINARY_DIR}/libbotan/lib/libbotan-3.a
-    )
-    add_dependencies(botan libbotan-build)
+#    ExternalProject_Add_StepTargets(libbotan build)
+#    add_custom_target(botan ALL
+#        DEPENDS ${BOTAN_LIB_DIR}/lib/libbotan-3.a
+#    )
+#    add_dependencies(botan libbotan-build)
 
     add_subdirectory(lib)
     add_subdirectory(app)
