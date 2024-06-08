@@ -5,7 +5,7 @@
 
 #include <string>
 #include <vector>
-#include "json.hpp"
+#include "../../../tests/json.hpp"
 
 // Decoding for std::string
 std::string decodeStringResponse(const std::string& jsonResponse) {
@@ -48,18 +48,20 @@ std::vector<std::string> decodeVectorStringResponse(const std::string& jsonRespo
 }
 
 // Decoding for success response
-void decodeSuccessResponse(const std::string& jsonResponse) {
+bool checkSuccessResponse(const std::string& jsonResponse) {
     nlohmann::json j = nlohmann::json::parse(jsonResponse);
-    if (!j["result"].get<bool>()) {
-        throw std::runtime_error(j["error"].get<std::string>());
+    if (j["result"].get<bool>()){
+        return true;
+    } else {
+        throw std::runtime_error("Expected a success response, but got error.");
     }
 }
 
 // Decoding for error response
-std::string decodeErrorResponse(const std::string& jsonResponse) {
+bool checkErrorResponse(const std::string& jsonResponse) {
     nlohmann::json j = nlohmann::json::parse(jsonResponse);
     if (!j["result"].get<bool>()) {
-        return j["error"].get<std::string>();
+        return true;
     } else {
         throw std::runtime_error("Expected an error response, but got success.");
     }

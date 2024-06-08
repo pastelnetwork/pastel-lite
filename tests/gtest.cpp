@@ -4,7 +4,7 @@
 
 #include <gtest/gtest.h>
 #include "libpastel.h"
-#include "decoder.h"
+#include "support/decoder.hpp"
 
 // Test fixture for the Pastel class
 class PastelTest : public ::testing::Test {

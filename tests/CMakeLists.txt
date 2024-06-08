@@ -9,7 +9,7 @@ file(GLOB TEST_SOURCES "*.cpp")
 
 # Create the test executable
 add_executable(runTests ${TEST_SOURCES}
-        decoder.h)
+        ../lib/include/support/decoder.hpp)
 
 # Link the test executable against Google Test and the Pastel library
 target_link_libraries(runTests PRIVATE GTest::gtest GTest::gtest_main pastel)
