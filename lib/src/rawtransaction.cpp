@@ -124,27 +124,27 @@ void TransactionBuilder::setInputs(v_utxos &utxos) {
         }
         // Find funding (unspent) transactions with enough coins to cover all outputs
         int64_t nLastUsedOutputNo = -1;
-        for (const auto &txOut: utxos) {
+        for (const auto &utxo: utxos) {
             ++nLastUsedOutputNo;
 
             if (m_sFromAddress.has_value()) // use utxo only from the specified funding address
             {
-                if (txOut.address != m_sFromAddress)
+                if (utxo.address != m_sFromAddress)
                     continue;
             }
 
-            CTxDestination destination = keyIO.DecodeDestination(txOut.address);
+            CTxDestination destination = keyIO.DecodeDestination(utxo.address);
             if (!IsValidDestination(destination))
-                throw runtime_error(string("Invalid Pastel address: ") + txOut.address);
-            m_mInputPubKeys[txOut.address] = GetScriptForDestination(destination);
+                throw runtime_error(string("Invalid Pastel address: ") + utxo.address);
+            m_mInputPubKeys[utxo.address] = GetScriptForDestination(destination);
 
             CTxIn input;
-            input.prevout.n = txOut.n;
-            input.prevout.hash = uint256S(txOut.txid);
+            input.prevout.n = utxo.n;
+            input.prevout.hash = uint256S(utxo.txid);
             m_mtx.vin.emplace_back(std::move(input));
-            m_vSelectedUTXOs.push_back(txOut);
+            m_vSelectedUTXOs.push_back(utxo);
 
-            nTotalValueInPat += txOut.value * COIN;
+            nTotalValueInPat += utxo.value * COIN;
 
             if (nTotalValueInPat >= m_nAllSpentAmountInPat)
                 break; // found enough coins
@@ -200,7 +200,7 @@ void TransactionBuilder::signTransaction(CHDWallet& hdWallet) {
         try {
             const auto &utxo = m_vSelectedUTXOs[i];
             const CScript &prevPubKey = m_mInputPubKeys[utxo.address];
-            const CAmount prevAmount = utxo.value;
+            const CAmount prevAmount = utxo.value * COIN;
             if (!signer.ProduceSignature(prevPubKey, m_mtx, i, prevAmount, to_integral_type(SIGHASH::ALL)))
                 throw runtime_error("Failed to produce a signature script");
         } catch (const exception &e) {
