@@ -50,6 +50,7 @@ public:
     string SignWithWalletKey(string message);
     string GetPubKeyAt(uint32_t addrIndex);     // returns base58 encoded Public Key, w/o prefix and checksum
     string SignWithKeyAt(uint32_t addrIndex, string message);
+    string GetSecret(uint32_t addrIndex, NetworkMode mode = NetworkMode::MAINNET);
 
     // Transaction functions
     string CreateSendToTransaction(NetworkMode mode,

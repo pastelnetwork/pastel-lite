@@ -120,6 +120,8 @@ public:
         READWRITE(m_externalPastelIDs);
     }
 
+    [[nodiscard]] string GetSecret(uint32_t addrIndex, NetworkMode mode = NetworkMode::MAINNET);
+
     [[nodiscard]] optional<CPubKey> GetPubKey(const CKeyID& keyID);
 protected:
     [[nodiscard]] optional<CKey> GetKey(const CKeyID& keyID);

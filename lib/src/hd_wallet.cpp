@@ -228,6 +228,15 @@ void CHDWallet::Unlock(const SecureString &strPassphrase) {
     return nullopt;
 }
 
+[[nodiscard]] string CHDWallet::GetSecret(uint32_t addrIndex, NetworkMode mode){
+    KeyIO keyIO(GetChainParams(mode));
+    auto key = GetKey(addrIndex);
+    if (key.has_value()) {
+        return keyIO.EncodeSecret(key.value());
+    }
+    return "";
+}
+
 [[nodiscard]] optional<CKey> CHDWallet::GetKey(const CKeyID& keyID) {
     if (m_keyIdIndexMap.contains(keyID)) {
         return GetKey(m_keyIdIndexMap[keyID]);

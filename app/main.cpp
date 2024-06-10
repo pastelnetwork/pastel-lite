@@ -278,6 +278,8 @@ int main() {
 //            }
 //        },
 
+        std::cout << "Private key" << lib.GetSecret(0, NetworkMode::DEVNET) << std::endl;
+
         auto send_to = sendto_addresses{
                 {"44oKWEAmQCb3tcGmksPvhebT1JfPEVNre3fg", 100},
 //                {"PtWW6LP6dLLgi5WqTYi6C7NwiesVgeRRV18", 500}
@@ -286,7 +288,7 @@ int main() {
                 {"44oEMCAvFTNuHZrJvsG1xknpyHKA8owdMEKo", "4bd5ef071fc9b1acddd081c6f76cb32d0aed754784a27d746363733feac79fcc", 0, 1000},
 //                {"PtnsSy2e2AQM1ZBM8fxpSXPrUQGFfkiYzyJ", "76a914d9c9353a034ca3f4ff703f89ab4e1b6fed6bfeb488ac", 0, 410},
         };
-        cout << lib.CreateSendToTransaction(NetworkMode::DEVNET, send_to, "", utxos, 75100);
+        cout << lib.CreateSendToTransaction(NetworkMode::DEVNET, send_to, "", utxos, 76240);
     }
 
     return 0;

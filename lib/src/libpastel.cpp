@@ -169,6 +169,12 @@ string Pastel::ExportPastelIDKeys(const string& pastelID, string passPhrase, con
     });
 }
 
+string Pastel::GetSecret(uint32_t addrIndex, NetworkMode mode) {
+    return wrapResponse([&]() {
+        return m_HDWallet.GetSecret(addrIndex, mode);
+    });
+}
+
 // Transaction functions
 string Pastel::CreateSendToTransaction(NetworkMode mode,
                                        const vector<pair<string, CAmount>>& sendTo, const string& sendFrom,

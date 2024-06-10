@@ -58,6 +58,7 @@ public:
     CMainnetParams(){
         m_base58Prefixes[to_integral_type(Base58Type::PUBKEY_ADDRESS)] = {0x0c, 0xe3};
         m_base58Prefixes[to_integral_type(Base58Type::EXT_PUBLIC_KEY)] = {0x04, 0x88, 0xB2, 0x1E};
+        m_base58Prefixes[to_integral_type(Base58Type::SECRET_KEY)] = {0x80};
         m_sPastelBurnAddress = "PtpasteLBurnAddressXXXXXXXXXXbJ5ndd";
     }
 };
@@ -67,6 +68,7 @@ public:
     CTestnetParams(){
         m_base58Prefixes[to_integral_type(Base58Type::PUBKEY_ADDRESS)] = {0x1C, 0xEF};
         m_base58Prefixes[to_integral_type(Base58Type::EXT_PUBLIC_KEY)] = {0x04, 0x35, 0x87, 0xCF};
+        m_base58Prefixes[to_integral_type(Base58Type::SECRET_KEY)] = {0xEF};
         m_sPastelBurnAddress = "tPpasteLBurnAddressXXXXXXXXXXX3wy7u";
     }
 };
@@ -76,6 +78,7 @@ public:
     CDevnetParams(){
         m_base58Prefixes[to_integral_type(Base58Type::PUBKEY_ADDRESS)] = {0x64, 0x1C};
         m_base58Prefixes[to_integral_type(Base58Type::EXT_PUBLIC_KEY)] = {0x04, 0x35, 0x87, 0xCF};
+        m_base58Prefixes[to_integral_type(Base58Type::SECRET_KEY)] = {0xEF};
         m_sPastelBurnAddress = "44oUgmZSL997veFEQDq569wv5tsT6KXf9QY7";
     }
 };

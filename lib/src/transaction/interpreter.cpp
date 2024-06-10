@@ -1141,6 +1141,8 @@ uint256 SignatureHash(const CScript& scriptCode, const CTransaction& txTo, unsig
         uint256 hashSequence;
         uint256 hashOutputs;
         uint256 hashJoinSplits;
+        uint256 hashShieldedSpends;
+        uint256 hashShieldedOutputs;
 
         if (!fHashAnyOneCanPay)
             hashPrevouts = GetPrevoutHash(txTo);
@@ -1156,6 +1158,12 @@ uint256 SignatureHash(const CScript& scriptCode, const CTransaction& txTo, unsig
             ss << txTo.vout[nIn];
             hashOutputs = ss.GetHash();
         }
+//
+//        if (!txTo.vShieldedSpend.empty())
+//            hashShieldedSpends = GetShieldedSpendsHash(txTo);
+//
+//        if (!txTo.vShieldedOutput.empty())
+//            hashShieldedOutputs = GetShieldedOutputsHash(txTo);
 
         uint32_t leConsensusBranchId = htole32(BRANCH_ID);
         unsigned char personalization[16] = {};
@@ -1174,6 +1182,12 @@ uint256 SignatureHash(const CScript& scriptCode, const CTransaction& txTo, unsig
         ss << hashOutputs;
         // JoinSplits
         ss << hashJoinSplits;
+        if (sigversion == SIGVERSION_SAPLING) {
+            // Spend descriptions
+            ss << hashShieldedSpends;
+            // Output descriptions
+            ss << hashShieldedOutputs;
+        }
         // Locktime
         ss << txTo.nLockTime;
         // Expiry height
