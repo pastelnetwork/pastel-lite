@@ -11,6 +11,8 @@
 #include "transaction/amount.h"
 #include "transaction/transaction.h"
 #include "hd_wallet.h"
+#include "tickets/ticket.h"
+#include "support/datacompressor.h"
 
 using namespace std;
 
@@ -33,10 +35,9 @@ public:
     TransactionBuilder(NetworkMode mode, uint32_t nHeight);
 
     void SetExpiration(int nExpiryHeight);
-    string Create(const sendto_addresses& sendTo, const string& sendFrom, v_utxos& utxos, CHDWallet& hdWallet);
 
 protected:
-    virtual void setOutputs(const sendto_addresses& sendTo) = 0;
+    virtual void setOutputs() = 0;
     virtual void setInputs(v_utxos& utxos);
 
     CMutableTransaction m_mtx;
@@ -58,10 +59,43 @@ protected:
 class SendToTransactionBuilder : public TransactionBuilder {
 public:
     SendToTransactionBuilder(NetworkMode mode, const uint32_t nHeight) : TransactionBuilder(mode, nHeight) {}
+    string Create(const sendto_addresses& sendTo, const string& sendFrom, v_utxos& utxos, CHDWallet& hdWallet);
 
 protected:
-    void setOutputs(const sendto_addresses& sendTo) override;
+    void setOutputs() override;
+
+private:
+    sendto_addresses m_sendTo;
+};
+
+class TicketTransactionBuilder : public TransactionBuilder {
+public:
+    TicketTransactionBuilder(NetworkMode mode, const uint32_t nHeight, CAmount extraPayment)
+        : TransactionBuilder(mode, nHeight), m_nExtraAmountInPat(extraPayment) {}
+
+protected:
+    void processTicket(CPastelTicket& ticket);
+
+    void setOutputs() override;
+
+    CAmount m_nTicketPriceInPat;
+    // Any extra payments to send with ticket
+    CAmount m_nExtraAmountInPat;
+    vector<CTxOut> m_vExtraOutputs;
 
 private:
     std::vector<CScript> m_vOutScripts;
+    size_t createP2FMSScripts(CCompressedDataStream& data_stream);
+};
+
+class RegisterPastelIDTransactionBuilder : public TicketTransactionBuilder {
+public:
+    RegisterPastelIDTransactionBuilder(NetworkMode mode, const uint32_t nHeight)
+        : TicketTransactionBuilder(mode, nHeight, 0) {}
+
+    string Create(string&& sPastelID, const string& sFundingAddress, v_utxos& utxos, CHDWallet& hdWallet);
+
+protected:
+
+private:
 };

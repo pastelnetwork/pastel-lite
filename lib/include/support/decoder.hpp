@@ -5,7 +5,7 @@
 
 #include <string>
 #include <vector>
-#include "../../../tests/json.hpp"
+#include "json/json.hpp"
 
 // Decoding for std::string
 std::string decodeStringResponse(const std::string& jsonResponse) {

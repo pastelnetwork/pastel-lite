@@ -455,9 +455,9 @@ string CHDWallet::GetPastelID(const string &pastelID, PastelIDType type) {
     auto addrIndex = m_pastelIDIndexMap[pastelID];
 
     if (type == PastelIDType::PASTELID) {
-        return ed448_sign(makePastelIDSeed(addrIndex, PastelIDType::PASTELID), message, fBase64? encoding::base64 : encoding::hex);
+        return ed448_sign(makePastelIDSeed(addrIndex, PastelIDType::PASTELID), message, fBase64? encoding::base64 : encoding::none);
     } else if (type == PastelIDType::LEGROAST) {
-        return legroast_sign(makePastelIDSeed(addrIndex, PastelIDType::LEGROAST), message, fBase64? encoding::base64 : encoding::hex);
+        return legroast_sign(makePastelIDSeed(addrIndex, PastelIDType::LEGROAST), message, fBase64? encoding::base64 : encoding::none);
     } else {
         throw runtime_error("Invalid PastelID type");
     }

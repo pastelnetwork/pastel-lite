@@ -6,6 +6,7 @@
 #include <future>
 
 #include "transaction/signer.h"
+#include "tickets/pastelid.h"
 #include "chain.h"
 #include "utils.h"
 #include "key_io.h"
@@ -18,6 +19,8 @@ static constexpr unsigned int DEFAULT_MIN_RELAY_TX_FEE = 30;
 static constexpr uint32_t TX_EXPIRING_SOON_THRESHOLD = 3;
 static constexpr CAmount DEFAULT_TRANSACTION_FEE = 0;
 static constexpr CAmount DEFAULT_TRANSACTION_MAX_FEE = static_cast<CAmount>(0.1 * COIN);
+
+static constexpr int DATASTREAM_VERSION = 1;
 
 CAmount GetMinimumFee(const size_t nTxBytes) {
     CFeeRate payTxFee(DEFAULT_TRANSACTION_FEE);
@@ -66,18 +69,6 @@ void TransactionBuilder::validateAddress(const string &address) {
                 fmt::format("Not a valid transparent address [{}] used for funding the transaction", address));
 }
 
-string TransactionBuilder::Create(const sendto_addresses &sendTo, const string &sendFrom, v_utxos &utxos, CHDWallet& hdWallet) {
-    if (!sendFrom.empty()) {
-        validateAddress(sendFrom);
-        m_sFromAddress = sendFrom;
-    }
-
-    setOutputs(sendTo);
-    setInputs(utxos);
-    signTransaction(hdWallet);
-    return encodeHexTx();
-}
-
 void TransactionBuilder::setInputs(v_utxos &utxos) {
     // Sort the utxos by their values, ascending
     sort(utxos.begin(), utxos.end(), [](const utxo &a, const utxo &b) {
@@ -102,7 +93,6 @@ void TransactionBuilder::setInputs(v_utxos &utxos) {
             // add signature size for each input
             nTxSize += m_mtx.vin.size() * TX_SIGNATURE_SCRIPT_SIZE;
             CAmount nNewTxFeeInPat = GetMinimumFee(nTxSize);
-//            CAmount nNewTxFeeInPat = 245;
 
             // if the new fee is within 1% of the previous fee, then we are done
             // but still will try to apply the new tx fee if it fits into the current inputs
@@ -160,8 +150,8 @@ void TransactionBuilder::setInputs(v_utxos &utxos) {
                 throw runtime_error(
                         fmt::format(
                                 "Not enough coins in the unspent transactions {} to cover the spending of {} PSL. Cannot send data to the blockchain!",
-                                m_sFromAddress.has_value() ? fmt::format(" for address [{}]", m_sFromAddress.value())
-                                                           : "", m_nAllSpentAmountInPat / COIN));
+                                m_sFromAddress.has_value() ? fmt::format(" for address [{}]", m_sFromAddress.value()) : "",
+                                m_nAllSpentAmountInPat / COIN));
         }
         // remove from vOutputs all selected outputs
         if (!utxos.empty() && (nLastUsedOutputNo >= 0))
@@ -215,10 +205,23 @@ string TransactionBuilder::encodeHexTx() {
     return HexStr(ssTx.begin(), ssTx.end());
 }
 
-void SendToTransactionBuilder::setOutputs(const sendto_addresses &sendTo) {
+string SendToTransactionBuilder::Create(const sendto_addresses &sendTo, const string &sendFrom, v_utxos &utxos, CHDWallet& hdWallet) {
+    if (!sendFrom.empty()) {
+        validateAddress(sendFrom);
+        m_sFromAddress = sendFrom;
+    }
+    m_sendTo = sendTo;
+
+    setOutputs();
+    setInputs(utxos);
+    signTransaction(hdWallet);
+    return encodeHexTx();
+}
+
+void SendToTransactionBuilder::setOutputs() {
     KeyIO keyIO(m_Params);
     set<CTxDestination> destinations;
-    for (const auto &sendToItem: sendTo) {
+    for (const auto &sendToItem: m_sendTo) {
         CTxDestination destination = keyIO.DecodeDestination(sendToItem.first);
         if (!IsValidDestination(destination))
             throw runtime_error(string("Invalid Pastel address: ") + sendToItem.first);
@@ -234,26 +237,77 @@ void SendToTransactionBuilder::setOutputs(const sendto_addresses &sendTo) {
         m_nAllSpentAmountInPat += nAmount;
     }
     m_numOutputs = m_mtx.vout.size();
+}
 
-    /* FOR TICKETS - TODO: move to child class
-        m_numOutputs = m_vOutScripts.size();
-        if (nPass == 0)
+void TicketTransactionBuilder::setOutputs() {
+
+    // ticket price in patoshis
+    const CAmount nPriceInPat = m_nTicketPriceInPat;
+    // total amount to spend in patoshis
+    CAmount nAllSpentAmountInPat = nPriceInPat + m_nExtraAmountInPat;
+
+    const size_t nFakeTxCount = m_vOutScripts.size();
+    // Amount in patoshis per output
+    const CAmount nPerOutputAmountInPat = nPriceInPat / nFakeTxCount;
+
+    // Add fake output scripts
+    m_mtx.vout.resize(m_numOutputs + 1); // +1 for change output
+    for (size_t i = 0; i < m_numOutputs; ++i)
+    {
+        m_mtx.vout[i].nValue = nPerOutputAmountInPat;
+        m_mtx.vout[i].scriptPubKey = m_vOutScripts[i];
+    }
+    // MUST be precise!!! adding leftover amount to first fake output in patoshis
+    const CAmount nLostAmountInPat = nPriceInPat - nPerOutputAmountInPat * nFakeTxCount;
+    m_mtx.vout[0].nValue = nPerOutputAmountInPat + nLostAmountInPat;
+    // Add extra outputs if required
+    if (m_nExtraAmountInPat != 0)
+    {
+        for (const auto& extra : m_vExtraOutputs)
+            m_mtx.vout.emplace_back(extra);
+    }
+    m_numOutputs = m_mtx.vout.size();
+}
+
+void TicketTransactionBuilder::processTicket(CPastelTicket& ticket) {
+    CCompressedDataStream data_stream(SER_NETWORK, DATASTREAM_VERSION);
+    auto nTicketID = ticket.TicketID();
+    // compressed flag is saved in highest bit of the ticket id
+    nTicketID |= TICKET_COMPRESS_ENABLE_MASK;
+    data_stream << nTicketID;
+    data_stream << ticket;
+    const size_t nUncompressedSize = data_stream.size();
+    // compress ticket data
+    std::string error;
+    if (!data_stream.CompressData(error, sizeof(nTicketID),
+        [&](CSerializeData::iterator start, CSerializeData::iterator end)
         {
-            // Add fake output scripts only on first pass
-            m_mtx.vout.resize(m_numOutputs + 1); // +1 for change output
-            for (size_t i = 0; i < m_numOutputs; ++i)
-            {
-                m_mtx.vout[i].nValue = nPerOutputAmountInPat;
-                m_mtx.vout[i].scriptPubKey = m_vOutScripts[i];
-            }
-            // MUST be precise!!!
-            m_mtx.vout[0].nValue = nPerOutputAmountInPat + nLostAmountInPat;
-            // Add extra outputs if required
-            if (m_nExtraAmountInPat != 0)
-            {
-                for (const auto& extra : m_vExtraOutputs)
-                    tx_out.vout.emplace_back(extra);
-            }
-        }
-     */
+            if (start != end)
+                *start = nTicketID & TICKET_COMPRESS_DISABLE_MASK;
+        }))
+        throw runtime_error(fmt::format("Failed to compress ticket ({}) data. {}", ticket.TicketName(), error));
+
+    const size_t nInputDataSize = createP2FMSScripts(data_stream);
+    if (!nInputDataSize || m_vOutScripts.empty())
+        throw runtime_error(fmt::format("Failed to create P2FMS from data provided. {}", error));
+
+}
+
+size_t TicketTransactionBuilder::createP2FMSScripts(CCompressedDataStream& data_stream){
+
+}
+
+string RegisterPastelIDTransactionBuilder::Create(string&& sPastelID, const string& sFundingAddress, v_utxos& utxos, CHDWallet& hdWallet) {
+    auto ticket = CPastelIDRegTicket::Create(std::move(sPastelID), sFundingAddress, hdWallet);
+
+    m_nExtraAmountInPat = ticket.GetExtraOutputs(m_vExtraOutputs);
+    m_nTicketPriceInPat = ticket.TicketPrice() * COIN;
+    m_sFromAddress = sFundingAddress;
+
+    processTicket(ticket);
+    setOutputs();
+
+    setInputs(utxos);
+    signTransaction(hdWallet);
+    return encodeHexTx();
 }

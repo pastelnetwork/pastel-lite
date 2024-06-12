@@ -2,9 +2,7 @@ cmake_minimum_required(VERSION 3.20)
 
 # Create a static library called 'libpastel'
 file(GLOB_RECURSE LIBPASTEL_SOURCES "*.cpp")
-add_library(pastel STATIC ${LIBPASTEL_SOURCES}
-        ../tests/gtest.cpp
-)
+add_library(pastel STATIC ${LIBPASTEL_SOURCES})
 
 # Specify the include directories for the library
 target_include_directories(pastel PUBLIC
@@ -14,6 +12,7 @@ target_include_directories(pastel PUBLIC
 target_include_directories(pastel PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/include
         ${libsecp256k1_SOURCE_DIR}/include
+        ${zstd_SOURCE_DIR}/lib
         ${BOTAN_LIB_DIR}/include/botan-3
 )
 
@@ -21,6 +20,7 @@ target_link_libraries(pastel PRIVATE secp256k1)
 target_link_libraries(pastel PRIVATE unofficial-sodium::sodium unofficial-sodium::sodium_config_public)
 target_link_libraries(pastel PRIVATE fmt::fmt)
 target_link_libraries(pastel PRIVATE "${BOTAN_LIB_DIR}/lib/libbotan-3.a")
+target_link_libraries(pastel PRIVATE zstd::libzstd_static)
 
 # Set the C++ standard for the library
 target_compile_features(pastel PUBLIC cxx_std_20)

@@ -287,6 +287,9 @@ public:
     std::string ToString() const;
 };
 
+using v_txouts = std::vector<CTxOut>;
+using v_txins = std::vector<CTxIn>;
+
 struct CMutableTransaction;
 
 /** The basic transaction that is broadcasted on the network and contained in
