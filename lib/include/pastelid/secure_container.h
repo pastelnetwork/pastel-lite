@@ -246,6 +246,14 @@ public:
     // read from secure container file encrypted secure data as a msgpack and decrypt
     void read_from_file(const std::string& sFilePath, const SecureString& sPassphrase);
 
+    // Get public data (byte vector) from the container by type
+    bool get_public_data_vector(const PUBLIC_ITEM_TYPE type, v_uint8& data) const noexcept;
+    bool get_public_data(const PUBLIC_ITEM_TYPE type, std::string &sData) const noexcept;
+    // Extract secure data from the container by type (returns byte vector)
+    v_uint8 extract_secure_data(const SECURE_ITEM_TYPE type);
+    // Extract secure data from the container by type (returns string)
+    std::string extract_secure_data_string(const SECURE_ITEM_TYPE type);
+
 private:
     static constexpr size_t PWKEY_BUFSUZE = crypto_box_SEEDBYTES;
 

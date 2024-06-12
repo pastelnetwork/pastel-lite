@@ -472,3 +472,94 @@ void CSecureContainer::read_from_file(const string& sFilePath, const SecureStrin
     if (!bOk)
         throw runtime_error(error);
 }
+
+/**
+ * Find secure item in the container by type.
+ *
+ * \param type - secure item type to find
+ * \return
+ */
+auto CSecureContainer::find_secure_item(const SECURE_ITEM_TYPE type) noexcept
+{
+    return find_if(m_vSecureItems.begin(), m_vSecureItems.end(), [=](const auto& Item) { return Item.type == type; });
+}
+
+/**
+ * Find public item in the container by type.
+ *
+ * \param type - secure item type to find
+ * \return
+ */
+auto CSecureContainer::find_public_item(const PUBLIC_ITEM_TYPE type) const noexcept
+{
+    return find_if(m_vPublicItems.cbegin(), m_vPublicItems.cend(), [=](const auto& Item) { return Item.type == type; });
+}
+
+/**
+ * Get public data (byte vector) from the container by type.
+ *
+ * \param type - public item type
+ * \param data - public binary data
+ * \return true if public item was found in the secure container
+ */
+bool CSecureContainer::get_public_data_vector(const PUBLIC_ITEM_TYPE type, v_uint8& data) const noexcept
+{
+    const auto it = find_public_item(type);
+    if (it != m_vPublicItems.cend())
+    {
+        data = it->data;
+        return true;
+    }
+    return false;
+}
+
+/**
+ * Get public data (string) from the container by type.
+ *
+ * \param type - public item type
+ * \param sData - public string data
+ * \return true if public item was found in the secure container
+ */
+bool CSecureContainer::get_public_data(const PUBLIC_ITEM_TYPE type, std::string& sData) const noexcept
+{
+    const auto it = find_public_item(type);
+    if (it != m_vPublicItems.cend())
+    {
+        sData.assign(it->data.cbegin(), it->data.cend());
+        return true;
+    }
+    return false;
+}
+
+/**
+ * Extract secure data from the container by type (byte vector).
+ *
+ * \param type - secure item type
+ * \return - secure data in byte vector (moved from storage)
+ */
+v_uint8 CSecureContainer::extract_secure_data(const SECURE_ITEM_TYPE type)
+{
+    auto it = find_secure_item(type);
+    if (it != m_vSecureItems.end())
+        return std::move(it->data);
+    return v_uint8();
+}
+
+/**
+ * Extract secure data from the container by type (string).
+ *
+ * \param type - secure item type
+ * \return - secure data (moved from storage)
+ */
+string CSecureContainer::extract_secure_data_string(const SECURE_ITEM_TYPE type)
+{
+    auto it = find_secure_item(type);
+    string sData;
+    if (it != m_vSecureItems.end())
+    {
+        sData.assign(reinterpret_cast<const char *>(it->data.data()), it->data.size());
+        memory_cleanse(it->data.data(), it->data.size());
+        it->data.clear();
+    }
+    return sData;
+}

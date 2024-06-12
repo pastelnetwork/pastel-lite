@@ -67,21 +67,21 @@ namespace crypto_helpers {
         }
     }
 
-    inline string ed448_pubkey_encoded(v_uint8&& seed)
+    inline string ed448_pubkey_encoded(v_uint8&& key_bits)
     {
-        auto key = Botan::Ed448_PrivateKey(std::span(seed));
+        auto key = Botan::Ed448_PrivateKey(std::span(key_bits));
         auto pubKey = key.public_key_bits();
         return CPastelID::EncodePastelID(pubKey);
     }
-    inline v_uint8 ed448_privkey(v_uint8&& seed) {
-        auto key = Botan::Ed448_PrivateKey(std::span(seed));
+    inline v_uint8 ed448_privkey(v_uint8&& key_bits) {
+        auto key = Botan::Ed448_PrivateKey(std::span(key_bits));
         auto privKey = key.raw_private_key_bits();
         return {privKey.begin(), privKey.end()};
     }
-    inline string ed448_sign(v_uint8&& seed, const string& message, encoding enc)
+    inline string ed448_sign(v_uint8&& key_bits, const string& message, encoding enc)
     {
         Botan::AutoSeeded_RNG rng;
-        auto key = Botan::Ed448_PrivateKey(std::span(seed));
+        auto key = Botan::Ed448_PrivateKey(std::span(key_bits));
         Botan::PK_Signer signer(key, rng, "Pure"); //"Ed448" - default - in OpenSSL
         signer.update(message);
         auto signature = signer.signature(rng);
@@ -99,22 +99,22 @@ namespace crypto_helpers {
         return verifier.check_signature(sig);
     }
 
-    inline string legroast_pubkey_encoded(v_uint8&& seed)
+    inline string legroast_pubkey_encoded(v_uint8&& key_bits)
     {
         CLegRoast<algorithm::Legendre_Middle> legRoastKey;
-        legRoastKey.keygen(std::move(seed));
+        legRoastKey.keygen(std::move(key_bits));
         return CPastelID::EncodeLegRoastPubKey(legRoastKey.get_public_key());
     }
-    inline v_uint8 legroast_privkey(v_uint8&& seed)
+    inline v_uint8 legroast_privkey(v_uint8&& key_bits)
     {
         CLegRoast<algorithm::Legendre_Middle> legRoastKey;
-        legRoastKey.keygen(std::move(seed));
+        legRoastKey.keygen(std::move(key_bits));
         return legRoastKey.get_private_key();
     }
-    inline string legroast_sign(v_uint8&& seed, const string& message, encoding enc)
+    inline string legroast_sign(v_uint8&& key_bits, const string& message, encoding enc)
     {
         CLegRoast<algorithm::Legendre_Middle> LegRoast;
-        LegRoast.keygen(std::move(seed));
+        LegRoast.keygen(std::move(key_bits));
         string error;
         if (!LegRoast.sign(error, reinterpret_cast<const unsigned char*>(message.data()), message.length()))
             throw runtime_error(fmt::format("Failed to sign text message with the LegRoast private key. {}", error));

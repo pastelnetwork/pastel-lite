@@ -75,5 +75,5 @@ public:
     bool VerifyWithPastelIDBase64(const string& pastelID, const string& messageBase64, const string& signature);
 
 private:
-    string getPastelIDKey(const string& pastelID, const SecureString& password);
+    auto getPastelIDKey(const string& pastelID, const SecureString& password);
 };
