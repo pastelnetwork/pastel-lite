@@ -80,7 +80,6 @@ vcpkg install
 `vcpkg` uses packages described in the `vcpkg.json`
 Currently they are:
 * `libsodium`
-* `OpenSLL`
 
 ### 5. Build native library `libpastel` and test tool `pastel_lite` 
 ``` bash
