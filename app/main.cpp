@@ -261,22 +261,7 @@ int main() {
         assert(okCheck);
         auto address = decodeStringResponse(lib.MakeNewAddress(NetworkMode::DEVNET));
         assert(address == "44oEMCAvFTNuHZrJvsG1xknpyHKA8owdMEKo");
-        // 4bd5ef071fc9b1acddd081c6f76cb32d0aed754784a27d746363733feac79fcc
-//        "vout": [
-//        {
-//            "value": 1000.00000,
-//                    "valuePat": 100000000,
-//                    "n": 0,
-//                    "scriptPubKey": {
-//                "asm": "OP_DUP OP_HASH160 25ca0dc39e74770fa739e9ced36912f0251842b4 OP_EQUALVERIFY OP_CHECKSIG",
-//                        "hex": "76a91425ca0dc39e74770fa739e9ced36912f0251842b488ac",
-//                        "reqSigs": 1,
-//                        "type": "pubkeyhash",
-//                        "addresses": [
-//                "44oEMCAvFTNuHZrJvsG1xknpyHKA8owdMEKo"
-//                ]
-//            }
-//        },
+        auto pastelID = decodeStringResponse(lib.MakeNewPastelID());
 
         std::cout << "Private key" << lib.GetSecret(0, NetworkMode::DEVNET) << std::endl;
 
@@ -285,10 +270,12 @@ int main() {
 //                {"PtWW6LP6dLLgi5WqTYi6C7NwiesVgeRRV18", 500}
         };
         auto utxos = v_utxos{
-                {"44oEMCAvFTNuHZrJvsG1xknpyHKA8owdMEKo", "4bd5ef071fc9b1acddd081c6f76cb32d0aed754784a27d746363733feac79fcc", 0, 1000},
+                {"44oEMCAvFTNuHZrJvsG1xknpyHKA8owdMEKo", "4bd5ef071fc9b1acddd081c6f76cb32d0aed754784a27d746363733feac79fcc", 0, 2000},
 //                {"PtnsSy2e2AQM1ZBM8fxpSXPrUQGFfkiYzyJ", "76a914d9c9353a034ca3f4ff703f89ab4e1b6fed6bfeb488ac", 0, 410},
         };
-        cout << lib.CreateSendToTransaction(NetworkMode::DEVNET, send_to, "", utxos, 76270);
+//        cout << lib.CreateSendToTransaction(NetworkMode::DEVNET, send_to, "", utxos, 76270);
+        cout << lib.CreateRegisterPastelIdTransaction(NetworkMode::DEVNET, std::move(pastelID),
+                                                      "44oEMCAvFTNuHZrJvsG1xknpyHKA8owdMEKo", utxos, 76270);
     }
 
     return 0;

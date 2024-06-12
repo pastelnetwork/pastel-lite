@@ -85,7 +85,7 @@ protected:
 
 private:
     std::vector<CScript> m_vOutScripts;
-    size_t createP2FMSScripts(CCompressedDataStream& data_stream);
+    size_t createP2FMSScripts(CCompressedDataStream& input_stream);
 };
 
 class RegisterPastelIDTransactionBuilder : public TicketTransactionBuilder {

@@ -56,6 +56,10 @@ public:
     string CreateSendToTransaction(NetworkMode mode,
                                    const vector<pair<string, CAmount>>& sendTo, const string& sendFrom,
                                    v_utxos& utxos, const uint32_t nHeight, int nExpiryHeight = 0);
+
+    string CreateRegisterPastelIdTransaction(NetworkMode mode,
+                                             string&& pastelID, const string& fundingAddress,
+                                             v_utxos& utxos, const uint32_t nHeight, int nExpiryHeight = 0);
 };
 
 class PastelSigner {

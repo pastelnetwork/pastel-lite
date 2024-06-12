@@ -12,6 +12,7 @@
 #include "key_io.h"
 #include "version.h"
 #include "serialize.h"
+#include "hash.h"
 #include "rawtransaction.h"
 
 static constexpr uint32_t DEFAULT_TX_EXPIRY_DELTA = 20;
@@ -234,6 +235,7 @@ void SendToTransactionBuilder::setOutputs() {
         CTxOut out(nAmount, scriptPubKey);
 
         m_mtx.vout.push_back(out);
+        // total amount to spend in patoshis - sum of all outputs
         m_nAllSpentAmountInPat += nAmount;
     }
     m_numOutputs = m_mtx.vout.size();
@@ -243,16 +245,16 @@ void TicketTransactionBuilder::setOutputs() {
 
     // ticket price in patoshis
     const CAmount nPriceInPat = m_nTicketPriceInPat;
-    // total amount to spend in patoshis
-    CAmount nAllSpentAmountInPat = nPriceInPat + m_nExtraAmountInPat;
+    // total amount to spend in patoshis - sum of all fake outputs + extra if any
+    m_nAllSpentAmountInPat = nPriceInPat + m_nExtraAmountInPat;
 
     const size_t nFakeTxCount = m_vOutScripts.size();
     // Amount in patoshis per output
     const CAmount nPerOutputAmountInPat = nPriceInPat / nFakeTxCount;
 
     // Add fake output scripts
-    m_mtx.vout.resize(m_numOutputs + 1); // +1 for change output
-    for (size_t i = 0; i < m_numOutputs; ++i)
+    m_mtx.vout.resize(nFakeTxCount);
+    for (size_t i = 0; i < nFakeTxCount; ++i)
     {
         m_mtx.vout[i].nValue = nPerOutputAmountInPat;
         m_mtx.vout[i].scriptPubKey = m_vOutScripts[i];
@@ -276,7 +278,9 @@ void TicketTransactionBuilder::processTicket(CPastelTicket& ticket) {
     nTicketID |= TICKET_COMPRESS_ENABLE_MASK;
     data_stream << nTicketID;
     data_stream << ticket;
-    const size_t nUncompressedSize = data_stream.size();
+
+    //const size_t nUncompressedSize = data_stream.size();
+
     // compress ticket data
     std::string error;
     if (!data_stream.CompressData(error, sizeof(nTicketID),
@@ -293,11 +297,61 @@ void TicketTransactionBuilder::processTicket(CPastelTicket& ticket) {
 
 }
 
-size_t TicketTransactionBuilder::createP2FMSScripts(CCompressedDataStream& data_stream){
+size_t TicketTransactionBuilder::createP2FMSScripts(CCompressedDataStream& input_stream){
+    m_vOutScripts.clear();
+    // fake key size - transaction data should be aligned to this size
+    constexpr size_t FAKE_KEY_SIZE = 33;
+    // position of the input stream data in vInputData vector
+    constexpr size_t STREAM_DATA_POS = uint256::SIZE + sizeof(uint64_t);
 
+    // +--------------  vInputData ---------------------------+
+    // |     8 bytes     |    32 bytes     |  nDataStreamSize |
+    // +-----------------+-----------------+------------------+
+    // | nDataStreamSize | input data hash |    input data    |
+    // +-----------------+-----------------+------------------+
+    v_uint8 vInputData;
+    const uint64_t nDataStreamSize = input_stream.size();
+    // input data size without padding
+    const size_t nDataSizeNotPadded = STREAM_DATA_POS + nDataStreamSize;
+    const size_t nInputDataSize = nDataSizeNotPadded + (FAKE_KEY_SIZE - (nDataSizeNotPadded % FAKE_KEY_SIZE));
+    vInputData.resize(nInputDataSize, 0);
+    input_stream.read_buf(vInputData.data() + STREAM_DATA_POS, input_stream.size());
+
+    auto p = vInputData.data();
+    // set size of the original data upfront
+    auto* input_len_bytes = reinterpret_cast<const unsigned char*>(&nDataStreamSize);
+    memcpy(p, input_len_bytes, sizeof(uint64_t)); // sizeof(uint64_t) == 8
+    p += sizeof(uint64_t);
+
+    // Calculate sha256 hash of the input data (without padding) and set it at offset 8
+    const uint256 input_hash = Hash(vInputData.cbegin() + STREAM_DATA_POS, vInputData.cbegin() + nDataSizeNotPadded);
+    memcpy(p, input_hash.begin(), input_hash.size());
+
+    // Create output P2FMS scripts
+    //    each CScript can hold up to 3 chunks (fake keys)
+    v_uint8 vChunk;
+    vChunk.resize(FAKE_KEY_SIZE);
+    for (size_t nChunkPos = 0; nChunkPos < nInputDataSize;)
+    {
+        CScript script;
+        script << CScript::EncodeOP_N(1);
+        int m = 0;
+        for (; m < 3 && nChunkPos < nInputDataSize; ++m, nChunkPos += FAKE_KEY_SIZE)
+        {
+            memcpy(vChunk.data(), vInputData.data() + nChunkPos, FAKE_KEY_SIZE);
+            script << vChunk;
+        }
+        // add chunks count (up to 3)
+        script << CScript::EncodeOP_N(m) << OP_CHECKMULTISIG;
+        m_vOutScripts.emplace_back(std::move(script));
+    }
+    return nInputDataSize;
 }
 
 string RegisterPastelIDTransactionBuilder::Create(string&& sPastelID, const string& sFundingAddress, v_utxos& utxos, CHDWallet& hdWallet) {
+    validateAddress(sFundingAddress);
+    m_sFromAddress = sFundingAddress;
+
     auto ticket = CPastelIDRegTicket::Create(std::move(sPastelID), sFundingAddress, hdWallet);
 
     m_nExtraAmountInPat = ticket.GetExtraOutputs(m_vExtraOutputs);

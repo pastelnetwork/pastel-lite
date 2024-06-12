@@ -189,6 +189,19 @@ string Pastel::CreateSendToTransaction(NetworkMode mode,
     });
 }
 
+string Pastel::CreateRegisterPastelIdTransaction(NetworkMode mode,
+                                                 string&& pastelID, const string& fundingAddress,
+                                                 v_utxos& utxos, const uint32_t nHeight, int nExpiryHeight) {
+
+    RegisterPastelIDTransactionBuilder pastelIdTransactionBuilder(mode, nHeight);
+    if (nExpiryHeight > 0)
+        pastelIdTransactionBuilder.SetExpiration(nExpiryHeight);
+
+    return wrapResponse([&]() {
+        return pastelIdTransactionBuilder.Create(std::move(pastelID), fundingAddress, utxos, m_HDWallet);
+    });
+}
+
 
 #ifdef __EMSCRIPTEN__
 EMSCRIPTEN_BINDINGS(PastelModule) {
