@@ -38,27 +38,27 @@ auto PastelSigner::getPastelIDKey(const string& pastelID, const SecureString& pa
     return cont.extract_secure_data(SECURE_ITEM_TYPE::pkey_ed448);
 }
 
-[[nodiscard]] v_uint8 PastelSigner::SignWithPastelID(const v_uint8& message, const string& pastelID, const SecureString& password) {
+//[[nodiscard]] v_uint8 PastelSigner::SignWithPastelID(const v_uint8& message, const string& pastelID, const SecureString& password) {
+//    return {};
+//}
 
-}
-
-string PastelSigner::SignWithPastelID(const string& message, const string& pastelID, const SecureString& password) {
+string PastelSigner::SignWithPastelID(const string& message, const string& pastelID, const string& password) {
     auto key = getPastelIDKey(pastelID, password);
-    return ed448_sign(std::move(key), message, encoding::none);
+    return ed448_sign(std::move(key), message, encoding::base64);   // return signature as base64
 }
 
-string PastelSigner::SignWithPastelIDBase64(const string& messageBase64, const string& pastelID, const SecureString& password) {
+string PastelSigner::SignWithPastelIDBase64(const string& messageBase64, const string& pastelID, const string& password) {
     auto message = Botan::base64_decode(messageBase64);
     auto key = getPastelIDKey(pastelID, password);
-    return ed448_sign(std::move(key), string(message.begin(), message.end()), encoding::base64);
+    return ed448_sign(std::move(key), string(message.begin(), message.end()), encoding::base64);   // return signature as base64
 }
 
 bool PastelSigner::VerifyWithPastelID(const string& message, const string& signature, const string& pastelID) {
     auto sig = Botan::base64_decode(signature);
-    return ed448_verify(pastelID, message, signature, encoding::base64);
+    return ed448_verify(pastelID, message, signature, encoding::base64);   // accept signature as base64
 }
 
 bool PastelSigner::VerifyWithPastelIDBase64(const string& messageBase64, const string& signature, const string& pastelID) {
     auto message = Botan::base64_decode(messageBase64);
-    return ed448_verify(pastelID, string(message.begin(), message.end()), signature, encoding::base64);
+    return ed448_verify(pastelID, string(message.begin(), message.end()), signature, encoding::base64);   // accept signature as base64
 }

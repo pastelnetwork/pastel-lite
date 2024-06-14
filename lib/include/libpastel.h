@@ -69,10 +69,10 @@ class PastelSigner {
 public:
     PastelSigner(const string& pastelID_dir);
 
-    [[nodiscard]] v_uint8 SignWithPastelID(const v_uint8& message, const string& pastelID, const SecureString& password);
+//    [[nodiscard]] v_uint8 SignWithPastelID(const v_uint8& message, const string& pastelID, const SecureString& password);
 
-    [[nodiscard]] string SignWithPastelID(const string& message, const string& pastelID, const SecureString& password);
-    [[nodiscard]] string SignWithPastelIDBase64(const string& messageBase64, const string& pastelID, const SecureString& password);
+    [[nodiscard]] string SignWithPastelID(const string& message, const string& pastelID, const string& password);
+    [[nodiscard]] string SignWithPastelIDBase64(const string& messageBase64, const string& pastelID, const string& password);
     bool VerifyWithPastelID(const string& message, const string& signature, const string& pastelID);
     bool VerifyWithPastelIDBase64(const string& messageBase64, const string& signature, const string& pastelID);
 

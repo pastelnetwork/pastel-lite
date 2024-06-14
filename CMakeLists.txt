@@ -41,22 +41,28 @@ if (NOT EMSCRIPTEN)
     FetchContent_MakeAvailable(fmt)
 
     # Botan
-    set(BOTAN_LIB_DIR "${CMAKE_BINARY_DIR}/libbotan")
-    ExternalProject_Add(
+    set(BOTAN_LIB_DIR "${CMAKE_BINARY_DIR}/libbotan-lib")
+    if (EXISTS ${BOTAN_LIB_DIR})
+        message(STATUS "${BOTAN_LIB_DIR} already built. Skipping build.")
+    else()
+        ExternalProject_Add(
             libbotan
             GIT_REPOSITORY https://github.com/randombit/botan.git
             GIT_TAG master
-            PREFIX ${BOTAN_LIB_DIR}
+            PREFIX ${CMAKE_BINARY_DIR}/libbotan
+            BUILD_IN_SOURCE 1
             CONFIGURE_COMMAND ./configure.py --prefix=${BOTAN_LIB_DIR} --disable-shared-library --minimized-build --enable-modules=auto_rng,system_rng,hash,shake,shake_xof,sha3,ed448,pbkdf2,hmac,x448,base64,sha2_32,sha2_64
             BUILD_COMMAND make
             INSTALL_COMMAND make install
             LOG_DOWNLOAD ON
             LOG_BUILD ON
             LOG_INSTALL ON
-    )
+        )
+    endif ()
 
     add_subdirectory(lib)
     add_subdirectory(app)
+    add_subdirectory(python_bindings)
 else () # EMSCRIPTEN
     # Add libsodium as an external project
     set(SODIUM_WASM_DIR "${CMAKE_BINARY_DIR}/libsodium-wasm")
@@ -68,6 +74,7 @@ else () # EMSCRIPTEN
                 GIT_REPOSITORY https://github.com/jedisct1/libsodium.git
                 GIT_TAG stable
                 PREFIX ${CMAKE_BINARY_DIR}/libsodium
+                BUILD_IN_SOURCE 1  # Build in the source directory
                 CONFIGURE_COMMAND ""
                 BUILD_IN_SOURCE 1
                 BUILD_COMMAND sh ${CMAKE_BINARY_DIR}/libsodium/src/libsodium/dist-build/emscripten.sh --standard

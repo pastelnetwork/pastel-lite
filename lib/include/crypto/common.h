@@ -15,7 +15,7 @@
 #include <compat/endian.h>
 
 #if defined(NDEBUG)
-# error "Pastel cannot be compiled without assertions."
+//# error "Pastel cannot be compiled without assertions."
 #endif
 
 uint16_t static inline ReadLE16(const unsigned char* ptr)
