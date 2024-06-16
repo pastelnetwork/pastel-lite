@@ -3,6 +3,7 @@
 /build-wasm-release*
 /build-native-debug*
 /build-native-release*
+/build-native-clang*
 /vcpkg_installed/
 /libpastel.a
 /libpastel_wasm.js
@@ -12,3 +13,4 @@
 /python_bindings/build
 /python_bindings/libpastelid.egg-info/
 python_bindings/setup.py
+
