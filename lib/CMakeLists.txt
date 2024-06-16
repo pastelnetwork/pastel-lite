@@ -24,6 +24,7 @@ target_link_libraries(pastel PRIVATE zstd::libzstd_static)
 
 # Set the C++ standard for the library
 target_compile_features(pastel PUBLIC cxx_std_20)
+set_target_properties(pastel PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 #add_dependencies(pastel botan)
 

@@ -8,6 +8,7 @@
 /libpastel_wasm.js
 /libpastel_wasm.wasm
 /libpastel_wasm.wasm.map
-/python_bindings/dist
+/python_bindings/venv
+/python_bindings/build
 /python_bindings/libpastelid.egg-info/
 python_bindings/setup.py

@@ -39,6 +39,7 @@ if (NOT EMSCRIPTEN)
             GIT_TAG master
     )
     FetchContent_MakeAvailable(fmt)
+    set_target_properties(fmt PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
     # Botan
     set(BOTAN_LIB_DIR "${CMAKE_BINARY_DIR}/libbotan-lib")
@@ -51,8 +52,8 @@ if (NOT EMSCRIPTEN)
             GIT_TAG master
             PREFIX ${CMAKE_BINARY_DIR}/libbotan
             BUILD_IN_SOURCE 1
-            CONFIGURE_COMMAND ./configure.py --prefix=${BOTAN_LIB_DIR} --disable-shared-library --minimized-build --enable-modules=auto_rng,system_rng,hash,shake,shake_xof,sha3,ed448,pbkdf2,hmac,x448,base64,sha2_32,sha2_64
-            BUILD_COMMAND make
+            CONFIGURE_COMMAND ./configure.py --cxxflags=-fPIC --prefix=${BOTAN_LIB_DIR} --disable-shared-library --minimized-build --enable-modules=auto_rng,system_rng,hash,shake,shake_xof,sha3,ed448,pbkdf2,hmac,x448,base64,sha2_32,sha2_64
+            BUILD_COMMAND make -j 1 # stupid botan fails to build otherwise
             INSTALL_COMMAND make install
             LOG_DOWNLOAD ON
             LOG_BUILD ON

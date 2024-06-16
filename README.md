@@ -97,3 +97,12 @@ cd build-wasm-debug
 emcmake cmake .. -DCMAKE_BUILD_TYPE=Debug
 emmake cmake --build .
 ```
+
+
+
+
+sudo add-apt-repository "deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-18 main"
+sudo add-apt-repository "deb-src http://apt.llvm.org/jammy/ llvm-toolchain-jammy-18 main"
+sudo apt-get install libllvm-18-ocaml-dev libllvm18 llvm-18 llvm-18-dev llvm-18-doc llvm-18-examples llvm-18-runtime
+sudo apt-get install libc++-18-dev libc++abi-18-dev
+sudo apt-get install clang-18 clang-tools-18 clang-18-doc libclang-common-18-dev libclang-18-dev libclang1-18 clang-format-18 python3-clang-18 clangd-18 clang-tidy-18
