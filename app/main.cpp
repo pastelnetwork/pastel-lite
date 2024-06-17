@@ -52,8 +52,9 @@ namespace testWallet {
         }
         for (uint32_t i = startIndex; i < startIndex + count; ++i) {
             auto pastelID = decodeStringResponse(lib.GetPastelIDByIndex(i));
+//            auto pastelIDLR = decodeStringResponse(lib.GetPastelIDByIndex(i, PastelIDType::LEGROAST));
             retrievedPastelIDs.push_back(pastelID);
-            std::cout << "Get existing PastelID " << i << ": " << pastelID << std::endl;
+//            std::cout << "Get existing PastelID " << i << ": " << pastelID << "; " << pastelIDLR << std::endl;
         }
         auto pastelIDCount = decodeUint32Response(lib.GetPastelIDsCount());
         std::cout << "PastelIDs count: " << pastelIDCount << std::endl;
@@ -314,10 +315,10 @@ namespace testSigner {
 }
 
 int main() {
-    //testWallet::run();
+    testWallet::run();
     //testSendTo::run();
 
-    testSigner::run();
+//    testSigner::run();
 
     return 0;
 }

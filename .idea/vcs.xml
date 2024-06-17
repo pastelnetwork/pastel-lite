@@ -2,8 +2,5 @@
 <project version="4">
   <component name="VcsDirectoryMappings">
     <mapping directory="$PROJECT_DIR$" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/build-native-clang18-debug/_deps/fmt-src" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/build-native-clang18-debug/_deps/libsecp256k1-src" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/build-native-clang18-debug/libbotan/src/libbotan" vcs="Git" />
   </component>
 </project>
