@@ -3,6 +3,7 @@
 /build-wasm-release*
 /build-native-debug*
 /build-native-release*
+/build-wasm-non-debug*
 /build-native-clang*
 /vcpkg_installed/
 /libpastel.a

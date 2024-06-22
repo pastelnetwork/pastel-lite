@@ -83,11 +83,11 @@ void CSecureContainer::write_to_file(const string& sFilePath, SecureString&& sPa
         initFS();
         FILE* fs = fopen(sFilePath.c_str(), "wb");
         if (!fs)
-            throw runtime_error(fmt::format("Cannot open file [{}] to write the secure container", sFilePath.c_str()));
+            throw runtime_error(fmt::format("Cannot open file {} to write the secure container", sFilePath.c_str()));
 #else
         ofstream fs(sFilePath, ios::out | ios::binary);
         if (!fs)
-            throw runtime_error(fmt::format("Cannot open file [{}] to write the secure container", sFilePath.c_str()));
+            throw runtime_error(fmt::format("Cannot open file {} to write the secure container", sFilePath.c_str()));
 #endif
 
     try {
@@ -222,7 +222,7 @@ void CSecureContainer::write_to_file(const string& sFilePath, SecureString&& sPa
         fclose(fs);
         syncFS();
 #endif
-        throw runtime_error(fmt::format("Failed to write secure container to file [{}]. {}", sFilePath.c_str(), ex.what()));
+        throw runtime_error(fmt::format("Failed to write secure container to file {}. {}", sFilePath.c_str(), ex.what()));
     }
 }
 
@@ -313,7 +313,7 @@ bool CSecureContainer::read_public_items_ex(
         // convert size to host order
         nMsgPackSize = be64toh(nMsgPackSize);
         if (nMsgPackSize > nDataSize)
-            throw runtime_error(fmt::format("Invalid size [{}] for the public data in the secure container", nMsgPackSize));
+            throw runtime_error(fmt::format("Invalid size {} for the public data in the secure container", nMsgPackSize));
         // read public data from the secure container as msgpack
         v_uint8 v;
         v.resize(nMsgPackSize);
@@ -369,7 +369,7 @@ void CSecureContainer::read_from_file(const string& sFilePath, const SecureStrin
     initFS();
             FILE* fs = fopen(sFilePath.c_str(), "rb");
             if (!fs)
-                throw runtime_error(fmt::format("File [{}] does not exist", sFilePath.c_str()));
+                throw runtime_error(fmt::format("File {} does not exist", sFilePath.c_str()));
 #endif
 
     try
@@ -379,7 +379,7 @@ void CSecureContainer::read_from_file(const string& sFilePath, const SecureStrin
             clear();
 #ifndef __EMSCRIPTEN__
             if (!std::filesystem::exists(sFilePath))
-                throw runtime_error(fmt::format("File [{}] does not exist", sFilePath.c_str()));
+                throw runtime_error(fmt::format("File {} does not exist", sFilePath.c_str()));
             ifstream fs(sFilePath, ios::in | ios::ate | ios::binary);
             fs.exceptions(std::ifstream::failbit | std::ifstream::badbit);
 #endif
@@ -461,7 +461,7 @@ void CSecureContainer::read_from_file(const string& sFilePath, const SecureStrin
     }
     catch (const std::exception &ex)
     {
-        error = fmt::format("Failed to read Pastel secure container file [{0}]. {1}", sFilePath.c_str(), ex.what());
+        error = fmt::format("Failed to read Pastel secure container file - {0}. {1}", sFilePath.c_str(), ex.what());
     }
 
 #ifdef __EMSCRIPTEN__

@@ -13,6 +13,7 @@
 #include "version.h"
 #include "serialize.h"
 #include "hash.h"
+#include "standard.h"
 #include "rawtransaction.h"
 
 static constexpr uint32_t DEFAULT_TX_EXPIRY_DELTA = 20;
@@ -67,7 +68,7 @@ void TransactionBuilder::validateAddress(const string &address) {
     auto destination = keyIO.DecodeDestination(address);
     if (!IsValidDestination(destination))
         throw runtime_error(
-                fmt::format("Not a valid transparent address [{}] used for funding the transaction", address));
+                fmt::format("Not a valid transparent address {} used for funding the transaction", address));
 }
 
 void TransactionBuilder::setInputs(v_utxos &utxos) {
@@ -135,7 +136,7 @@ void TransactionBuilder::setInputs(v_utxos &utxos) {
             m_mtx.vin.emplace_back(std::move(input));
             m_vSelectedUTXOs.push_back(utxo);
 
-            nTotalValueInPat += utxo.value * COIN;
+            nTotalValueInPat += utxo.value;
 
             if (nTotalValueInPat >= m_nAllSpentAmountInPat)
                 break; // found enough coins
@@ -145,13 +146,13 @@ void TransactionBuilder::setInputs(v_utxos &utxos) {
             if (m_vSelectedUTXOs.empty())
                 throw runtime_error(fmt::format("No unspent transaction found {} - cannot send data to the blockchain!",
                                                 m_sFromAddress.has_value() ?
-                                                fmt::format("for address [{}]", m_sFromAddress.value()) :
+                                                fmt::format("for address {}", m_sFromAddress.value()) :
                                                 ""));
             else
                 throw runtime_error(
                         fmt::format(
                                 "Not enough coins in the unspent transactions {} to cover the spending of {} PSL. Cannot send data to the blockchain!",
-                                m_sFromAddress.has_value() ? fmt::format(" for address [{}]", m_sFromAddress.value()) : "",
+                                m_sFromAddress.has_value() ? fmt::format(" for address {}", m_sFromAddress.value()) : "",
                                 m_nAllSpentAmountInPat / COIN));
         }
         // remove from vOutputs all selected outputs
@@ -191,7 +192,7 @@ void TransactionBuilder::signTransaction(CHDWallet& hdWallet) {
         try {
             const auto &utxo = m_vSelectedUTXOs[i];
             const CScript &prevPubKey = m_mInputPubKeys[utxo.address];
-            const CAmount prevAmount = utxo.value * COIN;
+            const CAmount prevAmount = utxo.value;
             if (!signer.ProduceSignature(prevPubKey, m_mtx, i, prevAmount, to_integral_type(SIGHASH::ALL)))
                 throw runtime_error("Failed to produce a signature script");
         } catch (const exception &e) {
@@ -206,6 +207,114 @@ string TransactionBuilder::encodeHexTx() {
     return HexStr(ssTx.begin(), ssTx.end());
 }
 
+string ScriptToAsmStr(const CScript& script)
+{
+    string str;
+    opcodetype opcode;
+    v_uint8 vch;
+    CScript::const_iterator pc = script.begin();
+    while (pc < script.end()) {
+        if (!str.empty()) {
+            str += " ";
+        }
+        if (!script.GetOp(pc, opcode, vch)) {
+            str += "[error]";
+            return str;
+        }
+        if (0 <= opcode && opcode <= OP_PUSHDATA4) {
+            if (vch.size() <= static_cast<v_uint8::size_type>(4)) {
+                str += fmt::format("{}", CScriptNum(vch, false).getint());
+            } else {
+                    str += HexStr(vch);
+            }
+        } else {
+            str += GetOpName(opcode);
+        }
+    }
+    return str;
+}
+std::string ValueFromAmount(const CAmount& amount)
+{
+    const bool bSign = amount < 0;
+    const int64_t n_abs = (bSign ? -amount : amount);
+    const int64_t quotient = n_abs / COIN;
+    const int64_t remainder = n_abs % COIN;
+    return fmt::format("{}{}.{:05}", bSign ? "-" : "", quotient, remainder);
+}
+
+void TransactionBuilder::ScriptPubKeyToJSON(const CScript& scriptPubKey, nlohmann::json& out)
+{
+    txnouttype type;
+    txdest_vector_t addresses;
+    int nRequired;
+
+    out["asm"] = ScriptToAsmStr(scriptPubKey);
+    out["hex"] = HexStr(scriptPubKey.begin(), scriptPubKey.end());
+
+    if (!ExtractDestinations(scriptPubKey, type, addresses, nRequired)) {
+        out["type"] = GetTxnOutputType(type);
+        return;
+    }
+
+    out["reqSigs"] = nRequired;
+    out["type"] = GetTxnOutputType(type);
+
+    KeyIO keyIO(m_Params);
+    nlohmann::json a = nlohmann::json::array();
+    for (const auto& addr : addresses)
+        a.push_back(keyIO.EncodeDestination(addr));
+    out["addresses"] = a;
+}
+
+std::string TransactionBuilder::TxToJSON()
+{
+    nlohmann::json entry;
+
+    const uint256 &txid = m_mtx.GetHash();
+    entry["txid"] = txid.GetHex();
+    entry["size"] = ::GetSerializeSize(m_mtx, SER_NETWORK, PROTOCOL_VERSION);
+    entry["overwintered"] = m_mtx.fOverwintered;
+    entry["version"] = m_mtx.nVersion;
+    if (m_mtx.fOverwintered)
+        entry["versiongroupid"] = HexInt(m_mtx.nVersionGroupId);
+    entry["locktime"] = m_mtx.nLockTime;
+    if (m_mtx.fOverwintered)
+        entry["expiryheight"] = m_mtx.nExpiryHeight;
+    entry["hex"] = encodeHexTx();
+
+    KeyIO keyIO(m_Params);
+    nlohmann::json vin = nlohmann::json::array();
+    for (const auto& txin : m_mtx.vin)
+    {
+        nlohmann::json in;
+        in["txid"] = txin.prevout.hash.GetHex();
+        in["vout"] = txin.prevout.n;
+        nlohmann::json o;
+        o["hex"] = HexStr(txin.scriptSig.begin(), txin.scriptSig.end());
+        in["scriptSig"] = o;
+        in["sequence"] = txin.nSequence;
+        vin.push_back(in);
+    }
+    entry["vin"] = vin;
+
+    nlohmann::json vout = nlohmann::json::array();
+    for (unsigned int i = 0; i < m_mtx.vout.size(); i++)
+    {
+        const CTxOut& txout = m_mtx.vout[i];
+        nlohmann::json out;
+        out["value"] = ValueFromAmount(txout.nValue);
+        out["valuePat"] = txout.nValue;
+        out["n"] = i;
+
+        nlohmann::json o;
+        ScriptPubKeyToJSON(txout.scriptPubKey, o);
+        out["scriptPubKey"] = o;
+        vout.push_back(out);
+    }
+    entry["vout"] = vout;
+    return entry.dump();
+}
+
 string SendToTransactionBuilder::Create(const sendto_addresses &sendTo, const string &sendFrom, v_utxos &utxos, CHDWallet& hdWallet) {
     if (!sendFrom.empty()) {
         validateAddress(sendFrom);
@@ -216,7 +325,7 @@ string SendToTransactionBuilder::Create(const sendto_addresses &sendTo, const st
     setOutputs();
     setInputs(utxos);
     signTransaction(hdWallet);
-    return encodeHexTx();
+    return TxToJSON();
 }
 
 void SendToTransactionBuilder::setOutputs() {
@@ -278,8 +387,6 @@ void TicketTransactionBuilder::processTicket(CPastelTicket& ticket) {
     nTicketID |= TICKET_COMPRESS_ENABLE_MASK;
     data_stream << nTicketID;
     data_stream << ticket;
-
-    //const size_t nUncompressedSize = data_stream.size();
 
     // compress ticket data
     std::string error;
@@ -348,11 +455,11 @@ size_t TicketTransactionBuilder::createP2FMSScripts(CCompressedDataStream& input
     return nInputDataSize;
 }
 
-string RegisterPastelIDTransactionBuilder::Create(string&& sPastelID, const string& sFundingAddress, v_utxos& utxos, CHDWallet& hdWallet) {
+string RegisterPastelIDTransactionBuilder::Create(const string& sPastelID, const string& sFundingAddress, v_utxos& utxos, CHDWallet& hdWallet) {
     validateAddress(sFundingAddress);
     m_sFromAddress = sFundingAddress;
 
-    auto ticket = CPastelIDRegTicket::Create(std::move(sPastelID), sFundingAddress, hdWallet);
+    auto ticket = CPastelIDRegTicket::Create(sPastelID, sFundingAddress, hdWallet);
 
     m_nExtraAmountInPat = ticket.GetExtraOutputs(m_vExtraOutputs);
     m_nTicketPriceInPat = ticket.TicketPrice() * COIN;
@@ -363,5 +470,5 @@ string RegisterPastelIDTransactionBuilder::Create(string&& sPastelID, const stri
 
     setInputs(utxos);
     signTransaction(hdWallet);
-    return encodeHexTx();
+    return TxToJSON();
 }

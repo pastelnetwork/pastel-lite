@@ -264,7 +264,7 @@ public:
         do {
             if (nSkSize != SK_BYTES)
             {
-                error = fmt::format("Failed to set LegRoast private key. Key size is invalid [{0}] != [{1}]", nSkSize, SK_BYTES);
+                error = fmt::format("Failed to set LegRoast private key. Key size is invalid {0} != {1}", nSkSize, SK_BYTES);
                 break;
             }
             memcpy(m_sk, sk, SK_BYTES);
@@ -288,7 +288,7 @@ public:
 	    {
 		    if (nPkSize != PK_BYTES)
 		    {
-			    error = fmt::format("Failed to set LegRoast public key. Key size is invalid [{0}] != [{1}]", nPkSize, PK_BYTES);
+			    error = fmt::format("Failed to set LegRoast public key. Key size is invalid {0} != {1}", nPkSize, PK_BYTES);
 			    break;
 		    }
 		    memcpy(m_pk, pk, PK_BYTES);
@@ -318,12 +318,12 @@ public:
             constexpr size_t nSigBytesSize = Params().SIG_BYTES;
             if (nSigSize != nSigBytesSize)
             {
-                error = fmt::format("Failed to set signature. Size is invalid [{0}] != [{1}]", nSigSize, nSigBytesSize);
+                error = fmt::format("Failed to set signature. Size is invalid {0} != {1}", nSigSize, nSigBytesSize);
                 break;
             }
             if (!allocate_signature())
             {
-                error = fmt::format("Failed to allocate memory [{0} bytes] for the signature", nSigBytesSize);
+                error = fmt::format("Failed to allocate memory - {0} bytes - for the signature", nSigBytesSize);
                 break;
             }
             memcpy(m_pSignature, sig, nSigSize);
@@ -394,7 +394,7 @@ public:
         {
             if (!allocate_signature())
             {
-                error = fmt::format("Failed to allocate memory [{0} bytes] for the signature", Params().SIG_BYTES);
+                error = fmt::format("Failed to allocate memory - {0} bytes - for the signature", Params().SIG_BYTES);
                 break;
             }
             if (!m_prover_state)
@@ -789,7 +789,7 @@ private:
         {
             if (!pBuf)
             {
-                error = fmt::format("Failed to allocate memory [{0} bytes] for signature verification", nBufSize);
+                error = fmt::format("Failed to allocate memory - {0} bytes - for signature verification", nBufSize);
                 break;
             }
             for (uint32_t nRound = 0; nRound < Params().nRounds; ++nRound)

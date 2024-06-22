@@ -126,3 +126,6 @@ bool ExtractDestinations(const CScript& scriptPubKey, txnouttype& typeRet, txdes
 
 CScript GetScriptForDestination(const CTxDestination& dest);
 CScript GetScriptForMultisig(int nRequired, const std::vector<CPubKey>& keys);
+
+/** Get the name of a txnouttype as a C string, or nullptr if unknown. */
+const char* GetTxnOutputType(const txnouttype t);

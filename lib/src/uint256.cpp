@@ -168,7 +168,7 @@ bool parse_uint256(string& error, uint256& value, const string &sUint256, const 
         if (sUint256.size() != uint256::SIZE * 2)
         {
             // Apple Clang (15.0.0) still doesn't support std::format
-            //error = std::format("Incorrect {} value size: {}, expected: {}. [{}]",
+            //error = std::format("Incorrect {} value size: {}, expected: {}. {}",
             //               szValueDesc ? szValueDesc : "uint256", sUint256.size(), uint256::SIZE * 2, sUint256);
             std::stringstream ss;
             ss << "Incorrect " << (szValueDesc ? szValueDesc : "uint256")

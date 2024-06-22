@@ -283,7 +283,7 @@ bool CCompressedDataStream::Decompress(string &error)
         // decompressed data size should match the one we got from the stream before decompression
         if (nDecompressedSize != nSavedDecompressedSize)
         {
-            error = fmt::format("Uncompressed data size does not match [{}] != [{}]", nDecompressedSize, nSavedDecompressedSize);
+            error = fmt::format("Uncompressed data size does not match {} != {}", nDecompressedSize, nSavedDecompressedSize);
             break;
         }
         m_nSavedCompressedSize = nSavedCompressedSize;

@@ -5,7 +5,7 @@
 #include "tickets/pastelid.h"
 #include "hd_wallet.h"
 
-CPastelIDRegTicket CPastelIDRegTicket::Create(std::string&& sPastelID, const std::string& sFundingAddress, CHDWallet& hdWallet)
+CPastelIDRegTicket CPastelIDRegTicket::Create(const std::string& sPastelID, const std::string& sFundingAddress, CHDWallet& hdWallet)
 {
     // this method will throw exception if PastelID was not created in Wallet
     auto legRoast = hdWallet.GetPastelID(sPastelID, PastelIDType::LEGROAST);

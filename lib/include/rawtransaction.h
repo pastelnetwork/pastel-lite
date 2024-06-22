@@ -6,6 +6,7 @@
 #include <string>
 #include <vector>
 
+#include <json/json.hpp>
 #include "chain.h"
 #include "standard.h"
 #include "transaction/amount.h"
@@ -21,7 +22,7 @@ struct utxo
     string address;
     string txid;
     int n;
-    CAmount value;
+    CAmount value;  //in Patoshis!!!
 };
 
 typedef vector<utxo> v_utxos;
@@ -35,6 +36,7 @@ public:
     TransactionBuilder(NetworkMode mode, uint32_t nHeight);
 
     void SetExpiration(int nExpiryHeight);
+    std::string TxToJSON();
 
 protected:
     virtual void setOutputs() = 0;
@@ -51,6 +53,7 @@ protected:
 
     void signTransaction(CHDWallet& hdWallet);
     string encodeHexTx();
+    void ScriptPubKeyToJSON(const CScript& scriptPubKey, nlohmann::json& out);
 
     void setChangeOutput(CAmount nChange);
     void validateAddress(const string& address);
@@ -93,7 +96,7 @@ public:
     RegisterPastelIDTransactionBuilder(NetworkMode mode, const uint32_t nHeight)
         : TicketTransactionBuilder(mode, nHeight, 0) {}
 
-    string Create(string&& sPastelID, const string& sFundingAddress, v_utxos& utxos, CHDWallet& hdWallet);
+    string Create(const string& sPastelID, const string& sFundingAddress, v_utxos& utxos, CHDWallet& hdWallet);
 
 protected:
 

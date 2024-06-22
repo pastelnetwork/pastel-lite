@@ -55,11 +55,23 @@ public:
     // Transaction functions
     string CreateSendToTransaction(NetworkMode mode,
                                    const vector<pair<string, CAmount>>& sendTo, const string& sendFrom,
-                                   v_utxos& utxos, const uint32_t nHeight, int nExpiryHeight = 0);
+                                   v_utxos& utxosJson, uint32_t nHeight, int nExpiryHeight = 0);
+
+    // JSON version
+    string CreateSendToTransactionJson(NetworkMode mode, const string& sendToJson, const string& sendFrom,
+                                       const string& utxosJson, uint32_t nHeight, int nExpiryHeight = 0);
 
     string CreateRegisterPastelIdTransaction(NetworkMode mode,
-                                             string&& pastelID, const string& fundingAddress,
-                                             v_utxos& utxos, const uint32_t nHeight, int nExpiryHeight = 0);
+                                             const string& pastelID, const string& fundingAddress,
+                                             v_utxos& utxos, uint32_t nHeight, int nExpiryHeight = 0);
+
+    // JSON version
+    string CreateRegisterPastelIdTransactionJson(NetworkMode mode,
+                                                 const string& pastelID, const string& fundingAddress,
+                                                 const string& utxosJson, uint32_t nHeight, int nExpiryHeight = 0);
+
+private:
+    static bool utxosJsonToVector(const string& utxosJson, v_utxos& utxos);
 };
 
 class PastelSigner {

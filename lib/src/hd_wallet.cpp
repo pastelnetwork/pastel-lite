@@ -378,9 +378,9 @@ v_uint8 CHDWallet::makePastelIDSeed(uint32_t addrIndex, PastelIDType type) {
     }
 }
 
-string CHDWallet::GetPastelID(uint32_t addrIndex, PastelIDType type) {
-    if (m_indexPastelIDMap.contains(addrIndex)) {
-        auto pastelID = m_indexPastelIDMap[addrIndex];
+string CHDWallet::GetPastelID(uint32_t pastelIDIndex, PastelIDType type) {
+    if (m_indexPastelIDMap.contains(pastelIDIndex)) {
+        auto pastelID = m_indexPastelIDMap[pastelIDIndex];
         if (type == PastelIDType::PASTELID) {
             return pastelID;
         } else if (type == PastelIDType::LEGROAST) {
@@ -405,12 +405,12 @@ string CHDWallet::GetPastelID(const string &pastelID, PastelIDType type) {
     throw runtime_error("PastelID not found");
 }
 
-[[nodiscard]] v_uint8 CHDWallet::GetPastelIDKey(uint32_t addrIndex, PastelIDType type) {
-    if (m_indexPastelIDMap.contains(addrIndex)) {
+[[nodiscard]] v_uint8 CHDWallet::GetPastelIDKey(uint32_t pastelIDIndex, PastelIDType type) {
+    if (m_indexPastelIDMap.contains(pastelIDIndex)) {
         if (type == PastelIDType::PASTELID) {
-            return ed448_privkey(makePastelIDSeed(addrIndex, PastelIDType::PASTELID));
+            return ed448_privkey(makePastelIDSeed(pastelIDIndex, PastelIDType::PASTELID));
         } else if (type == PastelIDType::LEGROAST) {
-            return legroast_privkey(makePastelIDSeed(addrIndex, PastelIDType::LEGROAST));
+            return legroast_privkey(makePastelIDSeed(pastelIDIndex, PastelIDType::LEGROAST));
         } else {
             throw runtime_error("Invalid PastelID type");
         }
@@ -452,12 +452,12 @@ string CHDWallet::GetPastelID(const string &pastelID, PastelIDType type) {
 [[nodiscard]] string CHDWallet::SignWithPastelID(const string& pastelID, const string& message, PastelIDType type, bool fBase64){
     if (!m_pastelIDIndexMap.contains(pastelID))
         throw runtime_error("PastelID not found");
-    auto addrIndex = m_pastelIDIndexMap[pastelID];
+    auto pastelIDIndex = m_pastelIDIndexMap[pastelID];
 
     if (type == PastelIDType::PASTELID) {
-        return ed448_sign(makePastelIDSeed(addrIndex, PastelIDType::PASTELID), message, fBase64? encoding::base64 : encoding::none);
+        return ed448_sign(makePastelIDSeed(pastelIDIndex, PastelIDType::PASTELID), message, fBase64? encoding::base64 : encoding::none);
     } else if (type == PastelIDType::LEGROAST) {
-        return legroast_sign(makePastelIDSeed(addrIndex, PastelIDType::LEGROAST), message, fBase64? encoding::base64 : encoding::none);
+        return legroast_sign(makePastelIDSeed(pastelIDIndex, PastelIDType::LEGROAST), message, fBase64? encoding::base64 : encoding::none);
     } else {
         throw runtime_error("Invalid PastelID type");
     }

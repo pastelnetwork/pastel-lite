@@ -15,9 +15,9 @@ class CPastelIDRegTicket : public CPastelTicket {
 public:
     CPastelIDRegTicket() noexcept = default;
 
-    explicit CPastelIDRegTicket(std::string &&_pastelID) : m_sPastelID(std::move(_pastelID)) {}
+    explicit CPastelIDRegTicket(const std::string& _pastelID) : m_sPastelID(_pastelID) {}
 
-    int TicketID() override {return 0;} //TicketID::PastelID
+    uint8_t TicketID() override {return 0;} //TicketID::PastelID
     std::string TicketName() override {return "Pastel ID";}
     CAmount TicketPrice() override {return 1000;}
 
@@ -36,7 +36,7 @@ public:
         READWRITE(m_LegRoastKey);
     }
 
-    static CPastelIDRegTicket Create(std::string&& sPastelID, const std::string& sFundingAddress, CHDWallet& hdWallet);
+    static CPastelIDRegTicket Create(const std::string& sPastelID, const std::string& sFundingAddress, CHDWallet& hdWallet);
 
 protected:
     void ToStrStream(stringstream& ss) const noexcept;

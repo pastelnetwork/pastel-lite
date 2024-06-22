@@ -48,3 +48,10 @@ inline std::string HexStr(const T& vch, bool fSpaces=false)
 {
     return HexStr(vch.begin(), vch.end(), fSpaces);
 }
+
+inline std::string HexInt(uint32_t val)
+{
+    std::stringstream ss;
+    ss << std::setfill('0') << std::setw(sizeof(uint32_t) * 2) << std::hex << val;
+    return ss.str();
+}

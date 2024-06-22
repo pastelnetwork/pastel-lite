@@ -16,7 +16,7 @@ public:
     // abstract classes should have virtual destructor
     virtual ~CPastelTicket() = default;
 
-    virtual int TicketID() = 0;
+    virtual uint8_t TicketID() = 0;
     virtual std::string TicketName() = 0;
     virtual CAmount TicketPrice() = 0;
 

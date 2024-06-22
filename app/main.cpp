@@ -291,12 +291,56 @@ namespace testSendTo{
 //                {"PtWW6LP6dLLgi5WqTYi6C7NwiesVgeRRV18", 500}
         };
         auto utxos = v_utxos{
-                {"44oEMCAvFTNuHZrJvsG1xknpyHKA8owdMEKo", "4bd5ef071fc9b1acddd081c6f76cb32d0aed754784a27d746363733feac79fcc", 0, 2000},
-//                {"PtnsSy2e2AQM1ZBM8fxpSXPrUQGFfkiYzyJ", "76a914d9c9353a034ca3f4ff703f89ab4e1b6fed6bfeb488ac", 0, 410},
+                {"44oEMCAvFTNuHZrJvsG1xknpyHKA8owdMEKo", "4bd5ef071fc9b1acddd081c6f76cb32d0aed754784a27d746363733feac79fcc", 0, 2000*100000},
+//                {"PtnsSy2e2AQM1ZBM8fxpSXPrUQGFfkiYzyJ", "76a914d9c9353a034ca3f4ff703f89ab4e1b6fed6bfeb488ac", 0, 410*100000},
         };
 //        cout << lib.CreateSendToTransaction(NetworkMode::DEVNET, send_to, "", utxos, 76270);
-        cout << lib.CreateRegisterPastelIdTransaction(NetworkMode::DEVNET, std::move(pastelID),
+        cout << lib.CreateRegisterPastelIdTransaction(NetworkMode::DEVNET, pastelID,
                                                       "44oEMCAvFTNuHZrJvsG1xknpyHKA8owdMEKo", utxos, 76270);
+    }
+}
+
+namespace testSendToJSON{
+    void run() {
+        Pastel lib;
+//        auto mnemonic= decodeStringResponse(lib.CreateNewWallet("password"));
+//        auto wallet = decodeStringResponse(lib.ExportWallet());
+//        std::cout << wallet << std::endl;
+//        std::cout << decodeStringResponse(lib.MakeNewAddress(NetworkMode::DEVNET)) << std::endl;
+
+        auto walletStr = "7KBHjKqLzc7QnRM44n8UrhUyxQ6W2ApLYpbwoRvUnzgQjd2XcyxwrWgDivanUv6QernA3prjECBVFUtTQRTqGDbnjxD5UvrZMKG616JLtdBgZjd4cKGx1hopaaRBzsUXmhr7WnsNSi6D6SteF26zDqvkuPooSkDUUrcBNiaJuEs3wuqGneySGxq5aX56AEb9ye544Wd5QJ8cDEz4eEzxx9r2zWHTAogw2r7JKtVf13T3Lm82jHYwfNjRfUsqGsyWu6onatf1eCpwd8ZK9z4d41ByvPtgyFUqFUtpXbivKz6gHrabyF3jBf4fd2bbW7cA4kanxDW2pbmUovMqm6QpfJwcshzdpk9nQ4XagmGgX";
+        std::cout << (checkSuccessResponse(lib.ImportWallet(walletStr))? "OK": "Failed") << std::endl;
+        auto unlockResponse = lib.UnlockWallet("password");
+        auto okCheck = checkSuccessResponse(unlockResponse);
+        assert(okCheck);
+        auto address = decodeStringResponse(lib.MakeNewAddress(NetworkMode::DEVNET));
+        assert(address == "44oEMCAvFTNuHZrJvsG1xknpyHKA8owdMEKo");
+        auto pastelID = decodeStringResponse(lib.MakeNewPastelID());
+        std::cout << "PastelID: " << pastelID << std::endl;
+
+        std::cout << "Private key" << lib.GetSecret(0, NetworkMode::DEVNET) << std::endl;
+
+        auto send_to_json = R"(
+        [
+             {
+                "address": "44oKWEAmQCb3tcGmksPvhebT1JfPEVNre3fg",
+                "amount": 100
+             }
+        ])";
+        auto utxo_json = R"(
+        [
+             {
+                "address": "44oEMCAvFTNuHZrJvsG1xknpyHKA8owdMEKo",
+                "txid": "35f467563ca38c74a9f9ee17291d042b72b0a766793ebe9153a408e72284e1a0",
+                "outputIndex": 1,
+                "script": "76a914cb4469283743420302d9ccddf5d0e10c68eae09c88ac",
+                "patoshis": 200000000,
+                "height": 78920
+             }
+        ])";
+//        cout << lib.CreateSendToTransactionJson(NetworkMode::DEVNET, send_to_json, "", utxo_json, 76270);
+        cout << decodeStringResponse(lib.CreateRegisterPastelIdTransactionJson(NetworkMode::DEVNET, pastelID, "44oEMCAvFTNuHZrJvsG1xknpyHKA8owdMEKo",
+                                                      utxo_json, 76270));
     }
 }
 
@@ -314,11 +358,24 @@ namespace testSigner {
     }
 }
 
-int main() {
-    testWallet::run();
-    //testSendTo::run();
+namespace testExternalWallet{
+    void run(){
+        std::cout << "==== External Wallet ====" << std::endl;
+        Pastel lib;
+        auto walletStr = "54E4KZKgzqgBeWpdKPX5kz7ECfcXwS7xQkXgHbRvkCd5ehSwZwMgR4dXt5Zbxj2DegbB5MKpVHH19SgH4UH9PA4iUpCqmr75aH54oKkjpDi8JfvE1drd3PhM9hK1Dd29deebKjkuEP72KM7Rc4udJcuiAUQiqhmdh7Y8Pzrx7qsh2Hbkcnb8VpLZgUNGG6sMWzewZQ4HNHcG3XorG2RAGKMhWiHkdUv1KJtSoUGMGHSv4GdoJgG4s64ojcKsg4iVRZJfzFqsRwxiPDHGutXbxKaDSzNhsyx68ZujQUqVYhDSx3AyERRmoiJ95HYXE1WEUrf2NNCnHkJGRnPSvjAzJVgxd3FAQWtX1ZPGKLFA2WvDXgNTAx7RQf6nKEfDpjWwb32A6bhk3MCgEaVgRtUBZFvFzsuGtz3twMA6V8g98ZNLN37F8wvVDVi7";
+        std::cout << (checkSuccessResponse(lib.ImportWallet(walletStr))? "OK": "Failed") << std::endl;
+        auto unlockResponse = lib.UnlockWallet("12341234");
+        auto okCheck = checkSuccessResponse(unlockResponse);
+        assert(okCheck);
+    }
+}
 
+int main() {
+//    testWallet::run();
+//    testSendTo::run();
+    testSendToJSON::run();
 //    testSigner::run();
+//    testExternalWallet::run();
 
     return 0;
 }
