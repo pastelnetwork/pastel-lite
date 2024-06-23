@@ -267,7 +267,7 @@ namespace testWallet {
     }
 }
 
-namespace testSendTo{
+namespace testSendTo {
     void run() {
         Pastel lib;
 //        auto mnemonic= decodeStringResponse(lib.CreateNewWallet("password"));
@@ -276,7 +276,7 @@ namespace testSendTo{
 //        std::cout << decodeStringResponse(lib.MakeNewAddress(NetworkMode::DEVNET)) << std::endl;
 
         auto walletStr = "7KBHjKqLzc7QnRM44n8UrhUyxQ6W2ApLYpbwoRvUnzgQjd2XcyxwrWgDivanUv6QernA3prjECBVFUtTQRTqGDbnjxD5UvrZMKG616JLtdBgZjd4cKGx1hopaaRBzsUXmhr7WnsNSi6D6SteF26zDqvkuPooSkDUUrcBNiaJuEs3wuqGneySGxq5aX56AEb9ye544Wd5QJ8cDEz4eEzxx9r2zWHTAogw2r7JKtVf13T3Lm82jHYwfNjRfUsqGsyWu6onatf1eCpwd8ZK9z4d41ByvPtgyFUqFUtpXbivKz6gHrabyF3jBf4fd2bbW7cA4kanxDW2pbmUovMqm6QpfJwcshzdpk9nQ4XagmGgX";
-        std::cout << (checkSuccessResponse(lib.ImportWallet(walletStr))? "OK": "Failed") << std::endl;
+        std::cout << (checkSuccessResponse(lib.ImportWallet(walletStr)) ? "OK" : "Failed") << std::endl;
         auto unlockResponse = lib.UnlockWallet("password");
         auto okCheck = checkSuccessResponse(unlockResponse);
         assert(okCheck);
@@ -291,7 +291,8 @@ namespace testSendTo{
 //                {"PtWW6LP6dLLgi5WqTYi6C7NwiesVgeRRV18", 500}
         };
         auto utxos = v_utxos{
-                {"44oEMCAvFTNuHZrJvsG1xknpyHKA8owdMEKo", "4bd5ef071fc9b1acddd081c6f76cb32d0aed754784a27d746363733feac79fcc", 0, 2000*100000},
+                {"44oEMCAvFTNuHZrJvsG1xknpyHKA8owdMEKo",
+                 "4bd5ef071fc9b1acddd081c6f76cb32d0aed754784a27d746363733feac79fcc", 0, 2000 * 100000},
 //                {"PtnsSy2e2AQM1ZBM8fxpSXPrUQGFfkiYzyJ", "76a914d9c9353a034ca3f4ff703f89ab4e1b6fed6bfeb488ac", 0, 410*100000},
         };
 //        cout << lib.CreateSendToTransaction(NetworkMode::DEVNET, send_to, "", utxos, 76270);
@@ -300,7 +301,7 @@ namespace testSendTo{
     }
 }
 
-namespace testSendToJSON{
+namespace testSendToJSON {
     void run() {
         Pastel lib;
 //        auto mnemonic= decodeStringResponse(lib.CreateNewWallet("password"));
@@ -309,7 +310,7 @@ namespace testSendToJSON{
 //        std::cout << decodeStringResponse(lib.MakeNewAddress(NetworkMode::DEVNET)) << std::endl;
 
         auto walletStr = "7KBHjKqLzc7QnRM44n8UrhUyxQ6W2ApLYpbwoRvUnzgQjd2XcyxwrWgDivanUv6QernA3prjECBVFUtTQRTqGDbnjxD5UvrZMKG616JLtdBgZjd4cKGx1hopaaRBzsUXmhr7WnsNSi6D6SteF26zDqvkuPooSkDUUrcBNiaJuEs3wuqGneySGxq5aX56AEb9ye544Wd5QJ8cDEz4eEzxx9r2zWHTAogw2r7JKtVf13T3Lm82jHYwfNjRfUsqGsyWu6onatf1eCpwd8ZK9z4d41ByvPtgyFUqFUtpXbivKz6gHrabyF3jBf4fd2bbW7cA4kanxDW2pbmUovMqm6QpfJwcshzdpk9nQ4XagmGgX";
-        std::cout << (checkSuccessResponse(lib.ImportWallet(walletStr))? "OK": "Failed") << std::endl;
+        std::cout << (checkSuccessResponse(lib.ImportWallet(walletStr)) ? "OK" : "Failed") << std::endl;
         auto unlockResponse = lib.UnlockWallet("password");
         auto okCheck = checkSuccessResponse(unlockResponse);
         assert(okCheck);
@@ -329,18 +330,35 @@ namespace testSendToJSON{
         ])";
         auto utxo_json = R"(
         [
-             {
-                "address": "44oEMCAvFTNuHZrJvsG1xknpyHKA8owdMEKo",
-                "txid": "35f467563ca38c74a9f9ee17291d042b72b0a766793ebe9153a408e72284e1a0",
-                "outputIndex": 1,
-                "script": "76a914cb4469283743420302d9ccddf5d0e10c68eae09c88ac",
-                "patoshis": 200000000,
-                "height": 78920
-             }
+  {
+    "address": "44oEMCAvFTNuHZrJvsG1xknpyHKA8owdMEKo",
+    "txid": "3e8b383ac68d9ecb51606f4b7589b8f2c0c22ed7701f73ad00452228ceb4304a",
+    "outputIndex": 0,
+    "script": "76a91425ca0dc39e74770fa739e9ced36912f0251842b488ac",
+    "patoshis": 89999661,
+    "height": 76263
+  },
+  {
+    "address": "44oEMCAvFTNuHZrJvsG1xknpyHKA8owdMEKo",
+    "txid": "8323a1928d697908e6fbb790db1c497abb69b395c83c2acf0c0bd5f49ebeac29",
+    "outputIndex": 1,
+    "script": "76a91425ca0dc39e74770fa739e9ced36912f0251842b488ac",
+    "patoshis": 100000000,
+    "height": 83647
+  },
+  {
+    "address": "44oEMCAvFTNuHZrJvsG1xknpyHKA8owdMEKo",
+    "txid": "16d18d8ed3d74699d2582d16b310333b8b13a5525b04b70f6ba0d302bc1ceffa",
+    "outputIndex": 0,
+    "script": "76a91425ca0dc39e74770fa739e9ced36912f0251842b488ac",
+    "patoshis": 100000000,
+    "height": 83647
+  }
         ])";
 //        cout << lib.CreateSendToTransactionJson(NetworkMode::DEVNET, send_to_json, "", utxo_json, 76270);
-        cout << decodeStringResponse(lib.CreateRegisterPastelIdTransactionJson(NetworkMode::DEVNET, pastelID, "44oEMCAvFTNuHZrJvsG1xknpyHKA8owdMEKo",
-                                                      utxo_json, 76270));
+        cout << decodeStringResponse(lib.CreateRegisterPastelIdTransactionJson(NetworkMode::DEVNET, pastelID,
+                                                                               "44oEMCAvFTNuHZrJvsG1xknpyHKA8owdMEKo",
+                                                                               utxo_json, 84001));
     }
 }
 
@@ -353,17 +371,19 @@ namespace testSigner {
 //        cout << (ok?"true":"false") << endl;
 
         auto signature = "0P6EeisbiWzmNab5HC0xeLAjLr/tW5zBLvFXE81yNciLtmUg8fXuvaZFrbsFT54fagznt4TNxK0ACYgQJ/3pVqmj0T5Al/BvetwqFg2VSjWP/ss6wCzYz83Uj94eoei7lrK7Iq55QMKghBmLRhtIjhIA";
-        auto ok = lib.VerifyWithPastelID("jXaczRW4MgeiioV1DAte38aj6FK2dwL7ykEajmm6K7J1XQc5qcJfkJYD24pSt1MUAbPjfhDv1iSYrSsxAqp1Mb", "test", signature);
-        cout << (ok?"true":"false") << endl;
+        auto ok = lib.VerifyWithPastelID(
+                "jXaczRW4MgeiioV1DAte38aj6FK2dwL7ykEajmm6K7J1XQc5qcJfkJYD24pSt1MUAbPjfhDv1iSYrSsxAqp1Mb", "test",
+                signature);
+        cout << (ok ? "true" : "false") << endl;
     }
 }
 
-namespace testExternalWallet{
-    void run(){
+namespace testExternalWallet {
+    void run() {
         std::cout << "==== External Wallet ====" << std::endl;
         Pastel lib;
         auto walletStr = "54E4KZKgzqgBeWpdKPX5kz7ECfcXwS7xQkXgHbRvkCd5ehSwZwMgR4dXt5Zbxj2DegbB5MKpVHH19SgH4UH9PA4iUpCqmr75aH54oKkjpDi8JfvE1drd3PhM9hK1Dd29deebKjkuEP72KM7Rc4udJcuiAUQiqhmdh7Y8Pzrx7qsh2Hbkcnb8VpLZgUNGG6sMWzewZQ4HNHcG3XorG2RAGKMhWiHkdUv1KJtSoUGMGHSv4GdoJgG4s64ojcKsg4iVRZJfzFqsRwxiPDHGutXbxKaDSzNhsyx68ZujQUqVYhDSx3AyERRmoiJ95HYXE1WEUrf2NNCnHkJGRnPSvjAzJVgxd3FAQWtX1ZPGKLFA2WvDXgNTAx7RQf6nKEfDpjWwb32A6bhk3MCgEaVgRtUBZFvFzsuGtz3twMA6V8g98ZNLN37F8wvVDVi7";
-        std::cout << (checkSuccessResponse(lib.ImportWallet(walletStr))? "OK": "Failed") << std::endl;
+        std::cout << (checkSuccessResponse(lib.ImportWallet(walletStr)) ? "OK" : "Failed") << std::endl;
         auto unlockResponse = lib.UnlockWallet("12341234");
         auto okCheck = checkSuccessResponse(unlockResponse);
         assert(okCheck);

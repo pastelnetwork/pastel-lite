@@ -168,23 +168,25 @@ void TransactionBuilder::setInputs(v_utxos &utxos) {
         throw runtime_error(fmt::format("Could not calculate transaction fee. Cannot send data to the blockchain!"));
 }
 
-//void TransactionBuilder::setChangeOutput(const CAmount nChange) {
-//    if (m_mtx.vout.size() == m_numOutputs)
-//        m_mtx.vout.resize(m_numOutputs + 1);
-//
-//    const auto &lastTxOut = m_vSelectedUTXOs.back();
-//    m_mtx.vout[m_numOutputs].scriptPubKey = m_mInputPubKeys[lastTxOut.address];
-//    m_mtx.vout[m_numOutputs].nValue = nChange;
-//}
+// add change at the END of vOut list - this is important for ticket transactions!!!
 void TransactionBuilder::setChangeOutput(const CAmount nChange) {
+    if (m_mtx.vout.size() == m_numOutputs)
+        m_mtx.vout.resize(m_numOutputs + 1);
+
     const auto &lastTxOut = m_vSelectedUTXOs.back();
-    if (m_mtx.vout.size() == m_numOutputs) {
-        m_mtx.vout.insert(m_mtx.vout.begin(), CTxOut(nChange, m_mInputPubKeys[lastTxOut.address]));
-    } else {
-        m_mtx.vout[0].scriptPubKey = m_mInputPubKeys[lastTxOut.address];
-        m_mtx.vout[0].nValue = nChange;
-    }
+    m_mtx.vout[m_numOutputs].scriptPubKey = m_mInputPubKeys[lastTxOut.address];
+    m_mtx.vout[m_numOutputs].nValue = nChange;
 }
+
+//void TransactionBuilder::setChangeOutput(const CAmount nChange) {
+//    const auto &lastTxOut = m_vSelectedUTXOs.back();
+//    if (m_mtx.vout.size() == m_numOutputs) {
+//        m_mtx.vout.insert(m_mtx.vout.begin(), CTxOut(nChange, m_mInputPubKeys[lastTxOut.address]));
+//    } else {
+//        m_mtx.vout[0].scriptPubKey = m_mInputPubKeys[lastTxOut.address];
+//        m_mtx.vout[0].nValue = nChange;
+//    }
+//}
 
 void TransactionBuilder::signTransaction(CHDWallet& hdWallet) {
     Signer signer(hdWallet);
