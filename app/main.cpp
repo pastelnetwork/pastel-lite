@@ -8,14 +8,23 @@
 #include <string>
 
 namespace testWallet {
-    void testCreateWallet(Pastel &lib, const std::string &password) {
+    string testCreateWallet(Pastel &lib, const std::string &password) {
         auto mnemonic = decodeStringResponse(lib.CreateNewWallet(password));
         std::cout << "==== Create wallet ====" << std::endl;
         std::cout << "Mnemonic: " << mnemonic << std::endl;
+        return mnemonic;
     }
 
-    void
-    testNewAddresses(Pastel &lib, uint32_t count, uint32_t startIndex = 0, NetworkMode mode = NetworkMode::MAINNET) {
+    string testRestoreWallet(Pastel &lib, const std::string &password, const std::string &mnemonic) {
+        auto mnemonicToo = decodeStringResponse(lib.CreateWalletFromMnemonic(password, mnemonic));
+        assert(mnemonic == mnemonicToo);
+        std::cout << "==== Create wallet From Mnemonic ====" << std::endl;
+        std::cout << "Mnemonic In: " << mnemonic << std::endl;
+        std::cout << "Mnemonic Out: " << mnemonicToo << std::endl;
+        return mnemonicToo;
+    }
+
+    std::vector<std::string> testNewAddresses(Pastel &lib, uint32_t count, uint32_t startIndex = 0, NetworkMode mode = NetworkMode::MAINNET) {
         std::vector<std::string> newAddresses;
         std::vector<std::string> retrievedAddresses;
 
@@ -38,9 +47,10 @@ namespace testWallet {
             assert(newAddresses[i] == retrievedAddresses[i]);
         }
         assert(addressCount == count + startIndex);
+        return newAddresses;
     }
 
-    void testNewPastelIDs(Pastel &lib, uint32_t count, uint32_t startIndex = 0) {
+    std::vector<std::string> testNewPastelIDs(Pastel &lib, uint32_t count, uint32_t startIndex = 0) {
         std::vector<std::string> newPastelIDs;
         std::vector<std::string> retrievedPastelIDs;
 
@@ -64,6 +74,7 @@ namespace testWallet {
             assert(newPastelIDs[i] == retrievedPastelIDs[i]);
         }
         assert(pastelIDCount == count + startIndex);
+        return newPastelIDs;
     }
 
     void testSignVerify(Pastel &lib) {
@@ -265,6 +276,21 @@ namespace testWallet {
         testUnlockWallet(lib2, password);
         testAccountManagement(lib2);
     }
+
+    void run2() {
+        auto password = "password";
+        auto mode = NetworkMode::MAINNET;
+        Pastel lib1;
+        auto mnemonic = testCreateWallet(lib1, password);
+        auto addresses1 = testNewAddresses(lib1, 2, 0, mode);
+        auto pastelIDs1 = testNewPastelIDs(lib1, 2);
+        Pastel lib2;
+        testRestoreWallet(lib2, password, mnemonic);
+        auto addresses2 = testNewAddresses(lib2, 2, 0, mode);
+        auto pastelIDs2 = testNewPastelIDs(lib2, 2);
+        assert(addresses1 == addresses2);
+        assert(pastelIDs1 == pastelIDs2);
+    }
 }
 
 namespace testSendTo {
@@ -365,16 +391,15 @@ namespace testSendToJSON {
 namespace testSigner {
     void run() {
         PastelSigner lib("/home/alexey/.pastel/devnet/pastelkeys/");
-//        auto signature = lib.SignWithPastelID("jXZ2tqWy4nMp3wTRJtwPYhcf57j2FequbHoi6wciVzDgDr2dwbqgoS33BD64GVZN7i9ZCdHU7GUeWbpp82Ro46", "test message", "password");
-//        cout << signature << endl;
-//        auto ok = lib.VerifyWithPastelID("jXZ2tqWy4nMp3wTRJtwPYhcf57j2FequbHoi6wciVzDgDr2dwbqgoS33BD64GVZN7i9ZCdHU7GUeWbpp82Ro46", "test message", signature);
-//        cout << (ok?"true":"false") << endl;
+        auto signature1 = lib.SignWithPastelID("jXZ2tqWy4nMp3wTRJtwPYhcf57j2FequbHoi6wciVzDgDr2dwbqgoS33BD64GVZN7i9ZCdHU7GUeWbpp82Ro46", "test message", "password");
+        cout << signature1 << endl;
+        auto ok1 = lib.VerifyWithPastelID("jXZ2tqWy4nMp3wTRJtwPYhcf57j2FequbHoi6wciVzDgDr2dwbqgoS33BD64GVZN7i9ZCdHU7GUeWbpp82Ro46", "test message", signature1);
+        cout << (ok1?"true":"false") << endl;
 
-        auto signature = "0P6EeisbiWzmNab5HC0xeLAjLr/tW5zBLvFXE81yNciLtmUg8fXuvaZFrbsFT54fagznt4TNxK0ACYgQJ/3pVqmj0T5Al/BvetwqFg2VSjWP/ss6wCzYz83Uj94eoei7lrK7Iq55QMKghBmLRhtIjhIA";
-        auto ok = lib.VerifyWithPastelID(
-                "jXaczRW4MgeiioV1DAte38aj6FK2dwL7ykEajmm6K7J1XQc5qcJfkJYD24pSt1MUAbPjfhDv1iSYrSsxAqp1Mb", "test",
-                signature);
-        cout << (ok ? "true" : "false") << endl;
+        auto signature2 = "0P6EeisbiWzmNab5HC0xeLAjLr/tW5zBLvFXE81yNciLtmUg8fXuvaZFrbsFT54fagznt4TNxK0ACYgQJ/3pVqmj0T5Al/BvetwqFg2VSjWP/ss6wCzYz83Uj94eoei7lrK7Iq55QMKghBmLRhtIjhIA";
+        auto ok2 = lib.VerifyWithPastelID(
+                "jXaczRW4MgeiioV1DAte38aj6FK2dwL7ykEajmm6K7J1XQc5qcJfkJYD24pSt1MUAbPjfhDv1iSYrSsxAqp1Mb", "test", signature2);
+        cout << (ok2 ? "true" : "false") << endl;
     }
 }
 
@@ -391,11 +416,12 @@ namespace testExternalWallet {
 }
 
 int main() {
-//    testWallet::run();
-//    testSendTo::run();
+    testWallet::run();
+    testWallet::run2();
+    testSendTo::run();
     testSendToJSON::run();
 //    testSigner::run();
-//    testExternalWallet::run();
+    testExternalWallet::run();
 
     return 0;
 }

@@ -22,7 +22,7 @@ public:
 
     // Wallet functions
     string CreateNewWallet(const string& password);
-    string CreateWalletFromMnemonic(const string& mnemonic, const string& password);
+    string CreateWalletFromMnemonic(const string& password, const string& mnemonic);
     string ExportWallet();
     string ImportWallet(const string& data);
     string UnlockWallet(const string& password);

@@ -53,6 +53,7 @@ class CHDWallet
 
 public:
     [[nodiscard]] string SetupNewWallet(const SecureString& password);
+    [[nodiscard]] string SetupNewWalletFromMnemonic(const SecureString& password, const SecureString& mnemonic);
     void Lock();
     void Unlock(const SecureString& strPassphrase);
     [[nodiscard]] bool IsLocked() const {return m_vMasterKey.empty();}
@@ -131,6 +132,9 @@ protected:
     [[nodiscard]] v_uint8 GetPastelIDKey(const string& pastelID, PastelIDType type = PastelIDType::PASTELID);
 
 private:
+    // function accepts lambda to get seed
+    string setupNewWalletImpl(const SecureString &password, const std::function<optional<MnemonicSeed>()>& getSeed);
+
     bool setMasterKey(const SecureString& strPassphrase, string& error = (string &) "") noexcept;
     bool setEncryptedMnemonicSeed(const MnemonicSeed& seed, string& error = (string &) "") noexcept;
     [[nodiscard]] optional<MnemonicSeed> getDecryptedMnemonicSeed() noexcept;

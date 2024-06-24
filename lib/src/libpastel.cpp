@@ -26,9 +26,9 @@ string Pastel::CreateNewWallet(const string &password) {
     });
 }
 
-string Pastel::CreateWalletFromMnemonic(const string &mnemonic, const string &password) {
+string Pastel::CreateWalletFromMnemonic(const string &password, const string &mnemonic) {
     return wrapResponse([&]() {
-        return false;
+        return m_HDWallet.SetupNewWalletFromMnemonic(password, mnemonic);
     });
 }
 
