@@ -15,7 +15,7 @@ class CPastelIDRegTicket : public CPastelTicket {
 public:
     CPastelIDRegTicket() noexcept = default;
 
-    explicit CPastelIDRegTicket(const std::string& _pastelID) : m_sPastelID(_pastelID) {}
+    explicit CPastelIDRegTicket(const std::string& _pastelID) : m_sPastelID(_pastelID) {m_nVersion = 1;}
 
     uint8_t TicketID() override {return 0;} //TicketID::PastelID
     std::string TicketName() override {return "Pastel ID";}

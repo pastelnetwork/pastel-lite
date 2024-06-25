@@ -416,12 +416,17 @@ namespace testExternalWallet {
 }
 
 int main() {
-    testWallet::run();
-    testWallet::run2();
-    testSendTo::run();
-    testSendToJSON::run();
-//    testSigner::run();
-    testExternalWallet::run();
+//    testWallet::run();
+//    testWallet::run2();
+//    testSendTo::run();
+//    testSendToJSON::run();
+////    testSigner::run();
+//    testExternalWallet::run();
+
+    auto walletStr = "L9we22TUta29d4255xWN5u6z8xyqV8VDygDPCCe6o2S6A6LR2FD6PN2tA4rFxeVtcJ2ugjHEBsB52GRVWes4kna4D3Y1n2xeWC9RJf4gtdor76LiNBuDBMBRyh6jXs3HsetM1vf1yGSiZj7UJP5nbzsDCNXWxDWoexGhbmQYVgtorTeriat9G9RiHcnFBGepnZx7va6WfFFe44TV56aue6tcLZKgNzJVRY146JcKZ5tEN8SF3SJqHzdHe3SvkRGKsEmoQDgtw2ZQYS8KDnPcP2LAXRcRT7TjJzo7pp21fq5cx4Yc42XnNU9zVrjPF8FxSSUojonn1kXKCKi6BHDJy5NAujGsLyt2wfHpy1L6iYPkEmdbRFGXQyzGqEAxtsXhMCUtgg8hNkDBZNJexY6WAe9mjXP9X9R";
+    Pastel lib2;
+    std::cout << lib2.ImportWallet(walletStr) << std::endl;
+    std::cout << lib2.UnlockWallet("12341234") << std::endl;
 
     return 0;
 }
