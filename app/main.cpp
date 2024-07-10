@@ -24,7 +24,8 @@ namespace testWallet {
         return mnemonicToo;
     }
 
-    std::vector<std::string> testNewAddresses(Pastel &lib, uint32_t count, uint32_t startIndex = 0, NetworkMode mode = NetworkMode::MAINNET) {
+    std::vector<std::string>
+    testNewAddresses(Pastel &lib, uint32_t count, uint32_t startIndex = 0, NetworkMode mode = NetworkMode::MAINNET) {
         std::vector<std::string> newAddresses;
         std::vector<std::string> retrievedAddresses;
 
@@ -381,24 +382,30 @@ namespace testSendToJSON {
     "height": 83647
   }
         ])";
-//        cout << lib.CreateSendToTransactionJson(NetworkMode::DEVNET, send_to_json, "", utxo_json, 76270);
-        cout << decodeStringResponse(lib.CreateRegisterPastelIdTransactionJson(NetworkMode::DEVNET, pastelID,
-                                                                               "44oEMCAvFTNuHZrJvsG1xknpyHKA8owdMEKo",
-                                                                               utxo_json, 84001));
+
+        cout << lib.CreateSendToTransactionJson(NetworkMode::DEVNET, send_to_json, "", utxo_json, 76270);
+//        cout << decodeStringResponse(lib.CreateRegisterPastelIdTransactionJson(NetworkMode::DEVNET, pastelID,
+//                                                                               "44oEMCAvFTNuHZrJvsG1xknpyHKA8owdMEKo",
+//                                                                               utxo_json, 84001));
     }
 }
 
 namespace testSigner {
     void run() {
         PastelSigner lib("/home/alexey/.pastel/devnet/pastelkeys/");
-        auto signature1 = lib.SignWithPastelID("jXZ2tqWy4nMp3wTRJtwPYhcf57j2FequbHoi6wciVzDgDr2dwbqgoS33BD64GVZN7i9ZCdHU7GUeWbpp82Ro46", "test message", "password");
+        auto signature1 = lib.SignWithPastelID(
+                "jXZ2tqWy4nMp3wTRJtwPYhcf57j2FequbHoi6wciVzDgDr2dwbqgoS33BD64GVZN7i9ZCdHU7GUeWbpp82Ro46",
+                "test message", "password");
         cout << signature1 << endl;
-        auto ok1 = lib.VerifyWithPastelID("jXZ2tqWy4nMp3wTRJtwPYhcf57j2FequbHoi6wciVzDgDr2dwbqgoS33BD64GVZN7i9ZCdHU7GUeWbpp82Ro46", "test message", signature1);
-        cout << (ok1?"true":"false") << endl;
+        auto ok1 = lib.VerifyWithPastelID(
+                "jXZ2tqWy4nMp3wTRJtwPYhcf57j2FequbHoi6wciVzDgDr2dwbqgoS33BD64GVZN7i9ZCdHU7GUeWbpp82Ro46",
+                "test message", signature1);
+        cout << (ok1 ? "true" : "false") << endl;
 
         auto signature2 = "0P6EeisbiWzmNab5HC0xeLAjLr/tW5zBLvFXE81yNciLtmUg8fXuvaZFrbsFT54fagznt4TNxK0ACYgQJ/3pVqmj0T5Al/BvetwqFg2VSjWP/ss6wCzYz83Uj94eoei7lrK7Iq55QMKghBmLRhtIjhIA";
         auto ok2 = lib.VerifyWithPastelID(
-                "jXaczRW4MgeiioV1DAte38aj6FK2dwL7ykEajmm6K7J1XQc5qcJfkJYD24pSt1MUAbPjfhDv1iSYrSsxAqp1Mb", "test", signature2);
+                "jXaczRW4MgeiioV1DAte38aj6FK2dwL7ykEajmm6K7J1XQc5qcJfkJYD24pSt1MUAbPjfhDv1iSYrSsxAqp1Mb", "test",
+                signature2);
         cout << (ok2 ? "true" : "false") << endl;
     }
 }
@@ -420,13 +427,27 @@ int main() {
 //    testWallet::run2();
 //    testSendTo::run();
 //    testSendToJSON::run();
-////    testSigner::run();
+//    testSigner::run();
 //    testExternalWallet::run();
 
-    auto walletStr = "L9we22TUta29d4255xWN5u6z8xyqV8VDygDPCCe6o2S6A6LR2FD6PN2tA4rFxeVtcJ2ugjHEBsB52GRVWes4kna4D3Y1n2xeWC9RJf4gtdor76LiNBuDBMBRyh6jXs3HsetM1vf1yGSiZj7UJP5nbzsDCNXWxDWoexGhbmQYVgtorTeriat9G9RiHcnFBGepnZx7va6WfFFe44TV56aue6tcLZKgNzJVRY146JcKZ5tEN8SF3SJqHzdHe3SvkRGKsEmoQDgtw2ZQYS8KDnPcP2LAXRcRT7TjJzo7pp21fq5cx4Yc42XnNU9zVrjPF8FxSSUojonn1kXKCKi6BHDJy5NAujGsLyt2wfHpy1L6iYPkEmdbRFGXQyzGqEAxtsXhMCUtgg8hNkDBZNJexY6WAe9mjXP9X9R";
-    Pastel lib2;
-    std::cout << lib2.ImportWallet(walletStr) << std::endl;
-    std::cout << lib2.UnlockWallet("12341234") << std::endl;
+//    auto walletStr = "L9we22TUta29d4255xWN5u6z8xyqV8VDygDPCCe6o2S6A6LR2FD6PN2tA4rFxeVtcJ2ugjHEBsB52GRVWes4kna4D3Y1n2xeWC9RJf4gtdor76LiNBuDBMBRyh6jXs3HsetM1vf1yGSiZj7UJP5nbzsDCNXWxDWoexGhbmQYVgtorTeriat9G9RiHcnFBGepnZx7va6WfFFe44TV56aue6tcLZKgNzJVRY146JcKZ5tEN8SF3SJqHzdHe3SvkRGKsEmoQDgtw2ZQYS8KDnPcP2LAXRcRT7TjJzo7pp21fq5cx4Yc42XnNU9zVrjPF8FxSSUojonn1kXKCKi6BHDJy5NAujGsLyt2wfHpy1L6iYPkEmdbRFGXQyzGqEAxtsXhMCUtgg8hNkDBZNJexY6WAe9mjXP9X9R";
+//    Pastel lib2;
+//    std::cout << lib2.ImportWallet(walletStr) << std::endl;
+//    std::cout << lib2.UnlockWallet("12341234") << std::endl;
+
+
+//    Pastel lib;
+//    auto walletStr = "L9we22TUta29d4255xWN5u6z8xyqV8VDygDPCCe6o2S6Abs5wTTyS3bdkTd9DUbGTXqMABvf5hqD2k1Fh6DVAbk9nHr3nTFxfhyTCZasWYpBPNjDFtxMAqeEX79MFMnNy3592VUKZt6uzFaGF2NqosUYMvfxArPUYkB93W7WVesswzJiD3yXnZh5Ficp5HMkeiJiFm5xvp3WhtJmhdMBqdXy2JqakVzLNrA4s1aH7UKk986KYcWLnW8mzoDL3V8ScKed3yghQfCWGJmmi6be5TVfSUodNs4zXz9rGbyHwa99vx8vHkmwfNbUb85fFTGYmD2xinPBQDUguVZU9As28bsCYubg5bPGkUynjZCLnYh3yfNinTnSCKRyMGm7A1exJF4HugnLRs1zCcMVf6PXV8Ups3rjEdd";
+//    std::cout << (checkSuccessResponse(lib.ImportWallet(walletStr)) ? "OK" : "Failed") << std::endl;
+//    auto unlockResponse = lib.UnlockWallet("12341234");
+//    auto okCheck = checkSuccessResponse(unlockResponse);
+//    assert(okCheck);
+//    auto address1 = decodeStringResponse(lib.MakeNewAddress(NetworkMode::DEVNET));
+//    auto address2 = decodeStringResponse(lib.MakeNewAddress(NetworkMode::DEVNET));
+//    assert(address2 == "44oZadG1Ns1qL1DGwuPswWR9sF6xtET86x92");
+//    auto send_to_json = R"([{"address":"44oHrTBfhAg7vxvFdMwABJWRjxCmEwkFr3fo","amount":1000}])";
+//    auto utxo_json = R"([{"address":"44oZadG1Ns1qL1DGwuPswWR9sF6xtET86x92","txid":"532d47232ca7b35907b2b85cf5cf06c6ce3321cd511439c733a38cbe07a8804a","outputIndex":0,"patoshis":200000000},{"address":"44oZadG1Ns1qL1DGwuPswWR9sF6xtET86x92","txid":"2d4c1985b5778de58c6850fd6a96b5d6f1b76f79b9e4fd4ea916529025914688","outputIndex":1,"patoshis":400000000},{"address":"44oZadG1Ns1qL1DGwuPswWR9sF6xtET86x92","txid":"1becee0d977da16cfd03a03f9fc4d42dddf2b56c6d6f1fc83f82df1085801a8b","outputIndex":0,"patoshis":100000000},{"address":"44oZadG1Ns1qL1DGwuPswWR9sF6xtET86x92","txid":"a805caa0692a84c4621ead16b0cd51aaa761e3f9eb2db9f48bbf7a559cc07ddd","outputIndex":1,"patoshis":300000000}])";
+//    cout << lib.CreateSendToTransactionJson(NetworkMode::DEVNET, send_to_json, "44oZadG1Ns1qL1DGwuPswWR9sF6xtET86x92", utxo_json, 76270);
 
     return 0;
 }
