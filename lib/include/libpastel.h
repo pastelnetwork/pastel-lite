@@ -35,7 +35,7 @@ public:
     string GetAddresses(NetworkMode mode = NetworkMode::MAINNET);
 
     // PastelID functions
-    string MakeNewPastelID();
+    string MakeNewPastelID(bool makeLegRoast = true);
     string GetPastelIDByIndex(uint32_t addrIndex, PastelIDType type = PastelIDType::PASTELID);
     string GetPastelID(const string& pastelID, PastelIDType type = PastelIDType::PASTELID);
     string GetPastelIDsCount();

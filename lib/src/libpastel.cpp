@@ -113,10 +113,10 @@ string Pastel::SignWithKeyAt(uint32_t addrIndex, string message) {
     });
 }
 
-string Pastel::MakeNewPastelID()
+string Pastel::MakeNewPastelID(bool makeLegRoast)
 {
     return wrapResponse([&]() {
-        return m_HDWallet.MakeNewPastelID();
+        return m_HDWallet.MakeNewPastelID(makeLegRoast);
     });
 }
 

@@ -79,7 +79,7 @@ public:
     //      won't be returned by GetPastelID and GetPastelIDs function;
     //      won't be counted by GetPastelIDsCount function;
     //      and won't be serialized
-    [[nodiscard]] string MakeNewPastelID();
+    [[nodiscard]] string MakeNewPastelID(bool makeLegRoast = true);
     [[nodiscard]] string GetPastelID(uint32_t pastelIDIndex, PastelIDType type = PastelIDType::PASTELID);
     [[nodiscard]] string GetPastelID(const string& pastelID, PastelIDType type = PastelIDType::PASTELID);
     [[nodiscard]] uint32_t GetPastelIDsCount() const { return m_pastelIDIndexMap.size(); }

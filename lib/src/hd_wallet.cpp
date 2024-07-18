@@ -373,15 +373,17 @@ v_uint8 CHDWallet::makePastelIDSeed(uint32_t addrIndex, PastelIDType type) {
     }
 }
 
-[[nodiscard]] string CHDWallet::MakeNewPastelID() {
+[[nodiscard]] string CHDWallet::MakeNewPastelID(bool makeLegRoast) {
     try {
         auto newIndex = m_pastelIDIndexMap.size();
         auto pastelID = ed448_pubkey_encoded(makePastelIDSeed(newIndex, PastelIDType::PASTELID));
-        auto legRoastPubKey = legroast_pubkey_encoded(makePastelIDSeed(newIndex, PastelIDType::LEGROAST));
-
         m_pastelIDIndexMap[pastelID] = newIndex;
         m_indexPastelIDMap[newIndex] = pastelID;
-        m_pastelIDLegRoastMap[pastelID] = legRoastPubKey;
+
+        if (makeLegRoast) {
+            auto legRoastPubKey = legroast_pubkey_encoded(makePastelIDSeed(newIndex, PastelIDType::LEGROAST));
+            m_pastelIDLegRoastMap[pastelID] = legRoastPubKey;
+        }
 
         return pastelID;
 
