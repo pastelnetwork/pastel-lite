@@ -98,6 +98,27 @@ emcmake cmake .. -DCMAKE_BUILD_TYPE=Debug
 emmake cmake --build .
 ```
 
+### 7. Build python bindings
+
+#### 7.1 Build the docker image  
+``` bash
+docker build -t pastel_python_build -f Dockerfile.python_build .
+```
+
+#### 7.2 Build the python bindings
+``` bash
+docker run pastel_python_build /src/build_python_package.sh
+```
+
+#### 7.3 Copy the python package to the host
+``` bash
+docker cp pastel_python_build_container:/src/python_bindings/wheelhouse/libpastelid-0.3.2-cp310-cp310-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl . 
+```
+
+#### 7.4 Upload the python package to pypi
+``` bash
+twine upload libpastelid-0.3.2-cp310-cp310-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl
+```
 
 ## Appendix
 
