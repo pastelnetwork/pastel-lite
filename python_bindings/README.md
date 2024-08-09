@@ -51,4 +51,3 @@ pip install dist/libpastelid-0.1-cp36-cp36m-linux_x86_64.whl
 3. Build the wheel using `python setup.py bdist_wheel`.
 4. Install the generated wheel using `pip install`.
 
-By following these steps, you can build and install the `libpastelid` Python package on your system.

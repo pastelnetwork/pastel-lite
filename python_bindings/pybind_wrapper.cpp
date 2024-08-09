@@ -12,12 +12,8 @@ namespace py = pybind11;
 PYBIND11_MODULE(libpastelid, m) {
     py::class_<PastelSigner>(m, "PastelSigner")
         .def(py::init<const std::string&>())
-//        .def("SignWithPastelID",
-//             py::overload_cast<const std::vector<uint8_t>&, const std::string&, const SecureString&>(&PastelSigner::SignWithPastelID))
-//        .def("SignWithPastelID",
-//             py::overload_cast<const std::string&, const std::string&, const SecureString&>(&PastelSigner::SignWithPastelID))
-        .def("SignWithPastelID", &PastelSigner::SignWithPastelID)
-        .def("SignWithPastelIDBase64", &PastelSigner::SignWithPastelIDBase64)
-        .def("VerifyWithPastelID", &PastelSigner::VerifyWithPastelID)
-        .def("VerifyWithPastelIDBase64", &PastelSigner::VerifyWithPastelIDBase64);
+        .def("sign_with_pastel_id", &PastelSigner::SignWithPastelID)
+        .def("sign_with_pastel_id_base64", &PastelSigner::SignWithPastelIDBase64)
+        .def("verify_with_pastel_id", &PastelSigner::VerifyWithPastelID)
+        .def("verify_with_pastel_id_base64", &PastelSigner::VerifyWithPastelIDBase64);
 }

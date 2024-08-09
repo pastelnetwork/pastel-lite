@@ -3,6 +3,8 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or https://www.opensource.org/licenses/mit-license.php.
 
+#include <functional>
+
 #include "crypter.h"
 #include "hd_mnemonic.h"
 #include "hd_keys.h"
@@ -123,29 +125,29 @@ public:
 
     [[nodiscard]] string GetSecret(uint32_t addrIndex, NetworkMode mode = NetworkMode::MAINNET);
 
-    [[nodiscard]] optional<CPubKey> GetPubKey(const CKeyID& keyID);
+    [[nodiscard]] std::optional<CPubKey> GetPubKey(const CKeyID& keyID);
 protected:
-    [[nodiscard]] optional<CKey> GetKey(const CKeyID& keyID);
-    [[nodiscard]] optional<CKey> GetKey(uint32_t addrIndex);
+    [[nodiscard]] std::optional<CKey> GetKey(const CKeyID& keyID);
+    [[nodiscard]] std::optional<CKey> GetKey(uint32_t addrIndex);
 
     [[nodiscard]] v_uint8 GetPastelIDKey(uint32_t pastelIDIndex, PastelIDType type = PastelIDType::PASTELID);
     [[nodiscard]] v_uint8 GetPastelIDKey(const string& pastelID, PastelIDType type = PastelIDType::PASTELID);
 
 private:
     // function accepts lambda to get seed
-    string setupNewWalletImpl(const SecureString &password, const std::function<optional<MnemonicSeed>()>& getSeed);
+    string setupNewWalletImpl(const SecureString &password, const std::function<std::optional<MnemonicSeed>()>& getSeed);
 
     bool setMasterKey(const SecureString& strPassphrase, string& error = (string &) "") noexcept;
     bool setEncryptedMnemonicSeed(const MnemonicSeed& seed, string& error = (string &) "") noexcept;
-    [[nodiscard]] optional<MnemonicSeed> getDecryptedMnemonicSeed() noexcept;
-    [[nodiscard]] optional<CExtKey> getExtKey(uint32_t addrIndex);
+    [[nodiscard]] std::optional<MnemonicSeed> getDecryptedMnemonicSeed() noexcept;
+    [[nodiscard]] std::optional<CExtKey> getExtKey(uint32_t addrIndex);
 
-    [[nodiscard]] optional<AccountKey> getAccountKey() noexcept;
+    [[nodiscard]] std::optional<AccountKey> getAccountKey() noexcept;
 
     [[nodiscard]] const v_uint8& getNetworkPrefix(NetworkMode mode, CChainParams::Base58Type type);
 
     string encodeAddress(const CKeyID& id, NetworkMode mode) noexcept;
-    optional<CKeyID> decodeAddress(const string& address, NetworkMode mode) noexcept;
+    std::optional<CKeyID> decodeAddress(const string& address, NetworkMode mode) noexcept;
     string encodeExtPubKey(const CExtPubKey& key, NetworkMode mode) noexcept;
     CExtPubKey decodeExtPubKey(const string& str, NetworkMode mode) noexcept;
 

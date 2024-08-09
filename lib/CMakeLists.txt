@@ -16,11 +16,12 @@ target_include_directories(pastel PRIVATE
         ${BOTAN_LIB_DIR}/include/botan-3
 )
 
-target_link_libraries(pastel PRIVATE secp256k1)
-target_link_libraries(pastel PRIVATE unofficial-sodium::sodium unofficial-sodium::sodium_config_public)
-target_link_libraries(pastel PRIVATE fmt::fmt)
-target_link_libraries(pastel PRIVATE "${BOTAN_LIB_DIR}/lib/libbotan-3.a")
-target_link_libraries(pastel PRIVATE zstd::libzstd_static)
+target_link_libraries(pastel PRIVATE secp256k1
+        unofficial-sodium::sodium unofficial-sodium::sodium_config_public
+        fmt::fmt
+        "${BOTAN_LIB_DIR}/lib/libbotan-3.a"
+        zstd::libzstd_static
+)
 
 # Set the C++ standard for the library
 target_compile_features(pastel PUBLIC cxx_std_20)

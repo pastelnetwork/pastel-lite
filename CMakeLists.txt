@@ -63,7 +63,6 @@ if (NOT EMSCRIPTEN)
 
     add_subdirectory(lib)
     add_subdirectory(app)
-    add_subdirectory(python_bindings)
 else () # EMSCRIPTEN
     # Add libsodium as an external project
     set(SODIUM_WASM_DIR "${CMAKE_BINARY_DIR}/libsodium-wasm")

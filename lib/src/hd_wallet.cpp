@@ -24,7 +24,7 @@ using namespace legroast;
 using namespace crypto_helpers;
 
 string CHDWallet::SetupNewWallet(const SecureString &password) {
-    return setupNewWalletImpl(password, []() -> optional<MnemonicSeed> {
+    return setupNewWalletImpl(password, []() -> std::optional<MnemonicSeed> {
         return MnemonicSeed::Random(CChainParams().BIP44CoinType(), Language::English);
     });
 }
@@ -32,12 +32,12 @@ string CHDWallet::SetupNewWallet(const SecureString &password) {
     if (mnemonic.empty()) {
         throw runtime_error("Mnemonic is empty");
     }
-    return setupNewWalletImpl(password, [&mnemonic]() -> optional<MnemonicSeed> {
+    return setupNewWalletImpl(password, [&mnemonic]() -> std::optional<MnemonicSeed> {
         return MnemonicSeed::FromPhrase(Language::English, mnemonic).value();
     });
 }
 
-string CHDWallet::setupNewWalletImpl(const SecureString &password, const std::function<optional<MnemonicSeed>()>& getSeed) {
+string CHDWallet::setupNewWalletImpl(const SecureString &password, const std::function<std::optional<MnemonicSeed>()>& getSeed) {
     // Generate new random master key and encrypt it using key derived from password
     string error;
     if (!setMasterKey(password, error)) {
