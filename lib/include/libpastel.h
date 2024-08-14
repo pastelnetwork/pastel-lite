@@ -74,20 +74,41 @@ private:
     static bool utxosJsonToVector(const string& utxosJson, v_utxos& utxos);
 };
 
-class PastelSigner {
+class PastelID {
+    friend class PastelSigner;
 
+    PastelID(const string& pastelIDDir, const string& pastelID, v_uint8 key) :
+        m_path(pastelIDDir), m_pastelID(pastelID), m_key(std::move(key)) {}
+
+    static auto getPastelIDKey(const string& pastelIDDir, const string& pastelID, const SecureString& password);
+    static PastelID Load(const string& pastelIDDir, const string& pastelID, const string& password);
+
+public:
+    [[nodiscard]] string Sign(const string& message);
+    [[nodiscard]] string SignBase64(const string& messageBase64);
+    bool Verify(const string& message, const string& signature);
+    bool VerifyBase64(const string& messageBase64, const string& signature);
+
+    [[nodiscard]] string GetPath() const { return m_path; }
+    [[nodiscard]] string GetID() const { return m_pastelID; }
+
+private:
+    string m_path;
+    string m_pastelID;
+    v_uint8 m_key;
+};
+
+class PastelSigner {
     string m_pastelIDDir;
 
 public:
     PastelSigner(const string& pastelID_dir);
-
-//    [[nodiscard]] v_uint8 SignWithPastelID(const v_uint8& message, const string& pastelID, const SecureString& password);
-
     [[nodiscard]] string SignWithPastelID(const string& message, const string& pastelID, const string& password);
     [[nodiscard]] string SignWithPastelIDBase64(const string& messageBase64, const string& pastelID, const string& password);
     bool VerifyWithPastelID(const string& message, const string& signature, const string& pastelID);
     bool VerifyWithPastelIDBase64(const string& messageBase64, const string& signature, const string& pastelID);
 
-private:
-    auto getPastelIDKey(const string& pastelID, const SecureString& password);
+    auto GetPastelID(const string& pastelID, const SecureString& password) {
+        return PastelID::Load(m_pastelIDDir, pastelID, password);
+    }
 };

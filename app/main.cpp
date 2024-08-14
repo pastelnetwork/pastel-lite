@@ -1,11 +1,11 @@
 #include <iostream>
 #include <json/json.hpp>
+#include <chrono>
+#include <string>
 
 #include "libpastel.h"
 #include "support/decoder.hpp"
 
-#include <iostream>
-#include <string>
 
 namespace testWallet {
     string testCreateWallet(Pastel &lib, const std::string &password) {
@@ -390,26 +390,50 @@ namespace testSendToJSON {
     }
 }
 
-namespace testSigner {
+namespace testSigner1 {
     void run() {
-        PastelSigner lib("/home/alexey/work/Pastel/pastel-lite/python_bindings");
+        PastelSigner lib("/Users/alexey/Work/Pastel/pastel-lite/python_bindings");
+        auto start1 = std::chrono::high_resolution_clock::now();
         auto signature1 = lib.SignWithPastelID(
                 "test message",
-                "jXXmQdZPF5mT6kxPr2Z3HNWsNKoZedC2gFdmwoAQr1e4kD5Jtw6BryZD8fJzZAgc2iAdMsUZ3aGfzE4ccrKkEo",
+                "jXYZbUhjAu6VM84LtggkGV9TR9EFjYAcZbdXdyor5aT7tjPsy3ZkzcDLGmx1ZtoTJNXoAVv2CDkBzx8T94XNDw",
                 "passphrase");
-        cout << signature1 << endl;
+        auto end1 = std::chrono::high_resolution_clock::now();
+        auto duration1 = std::chrono::duration_cast<std::chrono::milliseconds>(end1 - start1);
+        cout << "Sign with PastelSigner: " << signature1 << " (" << duration1.count() << ")" << endl;
         auto ok1 = lib.VerifyWithPastelID(
                 "test message",
                 signature1,
-                "jXXmQdZPF5mT6kxPr2Z3HNWsNKoZedC2gFdmwoAQr1e4kD5Jtw6BryZD8fJzZAgc2iAdMsUZ3aGfzE4ccrKkEo");
-        cout << (ok1 ? "true" : "false") << endl;
+                "jXYZbUhjAu6VM84LtggkGV9TR9EFjYAcZbdXdyor5aT7tjPsy3ZkzcDLGmx1ZtoTJNXoAVv2CDkBzx8T94XNDw");
+        cout << "Singed and verified: " << (ok1 ? "true" : "false") << endl;
 
         auto signature2 = "0P6EeisbiWzmNab5HC0xeLAjLr/tW5zBLvFXE81yNciLtmUg8fXuvaZFrbsFT54fagznt4TNxK0ACYgQJ/3pVqmj0T5Al/BvetwqFg2VSjWP/ss6wCzYz83Uj94eoei7lrK7Iq55QMKghBmLRhtIjhIA";
         auto ok2 = lib.VerifyWithPastelID(
                 "test",
                 signature2,
                 "jXaczRW4MgeiioV1DAte38aj6FK2dwL7ykEajmm6K7J1XQc5qcJfkJYD24pSt1MUAbPjfhDv1iSYrSsxAqp1Mb");
-        cout << (ok2 ? "true" : "false") << endl;
+        cout << signature2 << endl;
+        cout << "Verified signed message: " << (ok2 ? "true" : "false") << endl;
+    }
+}
+
+namespace testSigner2 {
+    void run() {
+        PastelSigner lib("/Users/alexey/Work/Pastel/pastel-lite/python_bindings");
+        auto pastelID = lib.GetPastelID(
+                "jXYZbUhjAu6VM84LtggkGV9TR9EFjYAcZbdXdyor5aT7tjPsy3ZkzcDLGmx1ZtoTJNXoAVv2CDkBzx8T94XNDw", "passphrase");
+        auto start2 = std::chrono::high_resolution_clock::now();
+        auto signature3 = pastelID.Sign("test message");
+        auto end2 = std::chrono::high_resolution_clock::now();
+        auto duration2 = std::chrono::duration_cast<std::chrono::milliseconds>(end2 - start2);
+        cout << "Sign with PastelSigner::GetPastelID: " << signature3 << " (" << duration2.count() << ")" << endl;
+        auto ok3 = pastelID.Verify("test message", signature3);
+        cout << "Singed and verified: " << (ok3 ? "true" : "false") << endl;
+        auto ok4 = lib.VerifyWithPastelID(
+                "test message",
+                signature3,
+                "jXYZbUhjAu6VM84LtggkGV9TR9EFjYAcZbdXdyor5aT7tjPsy3ZkzcDLGmx1ZtoTJNXoAVv2CDkBzx8T94XNDw");
+        cout << "Verified with PastelSigner: " << (ok4 ? "true" : "false") << endl;
     }
 }
 
@@ -430,7 +454,17 @@ int main() {
 //    testWallet::run2();
 //    testSendTo::run();
 //    testSendToJSON::run();
-    testSigner::run();
+    testSigner1::run();
+    testSigner1::run();
+    testSigner1::run();
+    testSigner1::run();
+    testSigner1::run();
+
+    testSigner2::run();
+    testSigner2::run();
+    testSigner2::run();
+    testSigner2::run();
+    testSigner2::run();
 //    testExternalWallet::run();
 
 //    auto walletStr = "L9we22TUta29d4255xWN5u6z8xyqV8VDygDPCCe6o2S6A6LR2FD6PN2tA4rFxeVtcJ2ugjHEBsB52GRVWes4kna4D3Y1n2xeWC9RJf4gtdor76LiNBuDBMBRyh6jXs3HsetM1vf1yGSiZj7UJP5nbzsDCNXWxDWoexGhbmQYVgtorTeriat9G9RiHcnFBGepnZx7va6WfFFe44TV56aue6tcLZKgNzJVRY146JcKZ5tEN8SF3SJqHzdHe3SvkRGKsEmoQDgtw2ZQYS8KDnPcP2LAXRcRT7TjJzo7pp21fq5cx4Yc42XnNU9zVrjPF8FxSSUojonn1kXKCKi6BHDJy5NAujGsLyt2wfHpy1L6iYPkEmdbRFGXQyzGqEAxtsXhMCUtgg8hNkDBZNJexY6WAe9mjXP9X9R";
