@@ -44,7 +44,7 @@ wheel_count=$(ls dist/*.whl 2>/dev/null | wc -l)
      echo "Warning: Multiple wheel files found. Using the first one."
  fi
 
- wheel_file=$(ls dist/*.whl 2>/dev/null | head -n 1)
+ wheel_file=$(ls -r dist/*.whl 2>/dev/null | head -n 1)
  if [ -z "$wheel_file" ]; then
      echo "Error: Unable to determine wheel file. Check wheel_build.log for details."
      exit 1
@@ -66,11 +66,8 @@ echo "Build logs have been saved. Please check wheel_build.log, ldd_output.log, 
 
 if [ -d "wheelhouse" ]; then
     echo "Checking final wheel:"
-    auditwheel show wheelhouse/*.whl 2>&1 | tee final_wheel_check.log
+    final_wheel_file=$(ls -r wheelhouse/*.whl 2>/dev/null | head -n 1)
+    auditwheel show "$final_wheel_file" 2>&1 | tee final_wheel_check.log
 else
     echo "Warning: No wheelhouse directory found. The wheel may not be manylinux compatible."
 fi
-
-# Add nm check for symbols
-echo "Checking for PastelSigner::VerifyWithPastelID symbol:"
-nm -C wheelhouse/*.so | grep PastelSigner::VerifyWithPastelID
