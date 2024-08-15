@@ -18,7 +18,6 @@ PYBIND11_MODULE(libpastelid, m) {
         .def("verify_with_pastel_id_base64", &PastelSigner::VerifyWithPastelIDBase64)
         .def("get_pastelid", &PastelSigner::GetPastelID);
     py::class_<PastelID>(m, "PastelID")
-        .def(py::init<const std::string&, const std::string&, const std::string&>())
         .def("sign", &PastelID::Sign)
         .def("sign_base64", &PastelID::SignBase64)
         .def("verify", &PastelID::Verify)

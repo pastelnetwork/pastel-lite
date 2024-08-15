@@ -55,7 +55,7 @@ wheel_count=$(ls dist/*.whl 2>/dev/null | wc -l)
  # Check the dependencies of the built extension
  echo "Checking shared library dependencies:"
  find . -name "*.so" -exec ldd {} \; 2>&1 | tee ldd_output.log
-+
+
  # Use auditwheel to check and repair the wheel
  echo "Checking wheel with auditwheel..."
  auditwheel show "$wheel_file" 2>&1 | tee auditwheel_show.log

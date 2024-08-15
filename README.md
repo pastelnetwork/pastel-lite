@@ -107,7 +107,7 @@ docker build -t pastel_python_build -f Dockerfile.python_build .
 
 #### 7.2 Build the python bindings
 ``` bash
-docker run pastel_python_build /src/build_python_package.sh
+docker run pastel_python_build /src/build_python_package_in_docker.sh
 ```
 
 #### 7.3 Copy the python package to the host
