@@ -18,8 +18,13 @@ using namespace secure_container;
 #include <emscripten.h>
 void initFS() {
     EM_ASM(
-        FS.mkdir('/wallet_data');
-        FS.mount(IDBFS, {}, '/wallet_data');
+        if (!FS.analyzePath('/wallet_data').exists) {
+            FS.mkdir('/wallet_data');
+            FS.mount(IDBFS, {}, '/wallet_data');
+            console.log('/wallet_data directory created and IDBFS mounted.');
+        } else {
+            console.log('/wallet_data directory already exists, no need to mount IDBFS.');
+        }
         FS.syncfs(true, function(err) {
             if (err) {
                 console.error('Error syncing file system:', err);

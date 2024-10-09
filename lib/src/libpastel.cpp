@@ -171,9 +171,21 @@ string Pastel::ExportPastelIDKeys(const string& pastelID, string passPhrase, con
     });
 }
 
+string Pastel::ImportPastelIDKeys(const string& pastelID, string passPhrase, const string& sDirPath) {
+    return wrapResponse([&]() {
+        return m_HDWallet.ImportPastelIDKeys(pastelID, std::move(passPhrase), sDirPath);
+    });
+}
+
 string Pastel::GetSecret(uint32_t addrIndex, NetworkMode mode) {
     return wrapResponse([&]() {
         return m_HDWallet.GetSecret(addrIndex, mode);
+    });
+}
+
+string Pastel::GetSecret(const string& address, NetworkMode mode) {
+    return wrapResponse([&]() {
+        return m_HDWallet.GetSecret(address, mode);
     });
 }
 
@@ -241,9 +253,9 @@ string Pastel::CreateSendToTransactionJson(NetworkMode mode, const string& sendT
     return CreateSendToTransaction(mode, sendTo, sendFrom, utxos, nHeight, nExpiryHeight);
 }
 
-string Pastel::CreateRegisterPastelIdTransaction(NetworkMode mode,
+string Pastel::CreateRegisterPastelIdTransaction(const NetworkMode mode,
                                                  const string& pastelID, const string& fundingAddress,
-                                                 v_utxos& utxos, uint32_t nHeight, int nExpiryHeight) {
+                                                 v_utxos& utxos, const uint32_t nHeight, const int nExpiryHeight) {
 
     RegisterPastelIDTransactionBuilder pastelIdTransactionBuilder(mode, nHeight);
     if (nExpiryHeight > 0)
@@ -268,8 +280,8 @@ utxosJson:
      ...
  ]
 */
-string Pastel::CreateRegisterPastelIdTransactionJson(NetworkMode mode, const  string& pastelID, const string& fundingAddress,
-                                                     const string& utxosJson, uint32_t nHeight, int nExpiryHeight) {
+string Pastel::CreateRegisterPastelIdTransactionJson(const NetworkMode mode, const  string& pastelID, const string& fundingAddress,
+                                                     const string& utxosJson, const uint32_t nHeight, const int nExpiryHeight) {
     if (utxosJson.empty())
         return wrapResponse([&]() {
             throw runtime_error("Empty UTXOs");
@@ -288,7 +300,7 @@ string Pastel::CreateRegisterPastelIdTransactionJson(NetworkMode mode, const  st
         return wrapResponse([&]() {
             throw runtime_error("Invalid UTXOs JSON");
         });
-    return CreateRegisterPastelIdTransaction(mode, std::move(pastelID), fundingAddress, utxos, nHeight, nExpiryHeight);
+    return CreateRegisterPastelIdTransaction(mode, pastelID, fundingAddress, utxos, nHeight, nExpiryHeight);
 }
 
 bool Pastel::utxosJsonToVector(const string& utxosJson, v_utxos& utxos) {
@@ -302,7 +314,7 @@ bool Pastel::utxosJsonToVector(const string& utxosJson, v_utxos& utxos) {
         u.value = item["patoshis"].get<int64_t>();
         utxos.push_back(u);
     }
-    return utxos.size() > 0;
+    return !utxos.empty();
 }
 
 
@@ -341,6 +353,7 @@ EMSCRIPTEN_BINDINGS(PastelModule) {
         .function("VerifyWithPastelID", &Pastel::VerifyWithPastelID)
         .function("VerifyWithLegRoast", &Pastel::VerifyWithLegRoast)
         .function("ExportPastelIDKeys", &Pastel::ExportPastelIDKeys)
+        .function("ImportPastelIDKeys", &Pastel::ImportPastelIDKeys)
 
         .function("GetWalletPubKey", &Pastel::GetWalletPubKey)
         .function("SignWithWalletKey", &Pastel::SignWithWalletKey)

@@ -16,12 +16,14 @@ using namespace std;
 struct external_pastel_id {
     pair<uint256, v_uint8> m_encryptedPastelIDKey;   // [fingerprint, encrypted Key]
     pair<uint256, v_uint8> m_encryptedLegRoastKey;   // [fingerprint, encrypted Key]
+    string m_legRoastPubKey;
 
     ADD_SERIALIZE_METHODS;
     template <typename Stream, typename Operation>
     inline void SerializationOp(Stream& s, Operation ser_action) {
         READWRITE(m_encryptedPastelIDKey);
         READWRITE(m_encryptedLegRoastKey);
+        READWRITE(m_legRoastPubKey);
     }
 };
 
@@ -32,10 +34,10 @@ class CHDWallet
     friend class Signer;
 
     pair<uint256, v_uint8> m_encryptedMnemonicSeed; // [fingerprint, seed encrypted with m_vMasterKey]
-    CMasterKey m_encryptedMasterKey;    // m_vMasterKey encrypted with key derived from passphrase, also keeps salt and derivation method inside
+    CMasterKey m_encryptedMasterKey;    // m_vMasterKey encrypted with a key derived from passphrase, also keeps salt and derivation method inside
 
-    map<CKeyID, uint32_t>  m_keyIdIndexMap;     // to access address index by address (non encoded)
-    map<string, CKey> m_addressMapNonHD;        // to access exported NON HD private keys by address. TODO: encryption/decryption for serialization/deserialization
+    map<CKeyID, uint32_t> m_keyIdIndexMap;          // to access address index by address (non encoded)
+    map<string, CKey> m_addressMapLegacy;           // to access exported NON HD private keys by address. TODO: encryption/decryption for serialization/deserialization
 
     map<string, uint32_t> m_pastelIDIndexMap;               // only ed448 public part
     map<string, string> m_pastelIDLegRoastMap;
@@ -44,7 +46,7 @@ class CHDWallet
     // Do not serialize
     CKeyingMaterial m_vMasterKey;   // random key
 
-    map<uint32_t, CKeyID>  m_indexKeyIdMap;     // to access (non encoded) address index by address
+    map<uint32_t, CKeyID> m_indexKeyIdMap;     // to access (non-encoded) address index by address
     map<uint32_t, string> m_indexPastelIDMap;   // only ed448 public part
 
     uint32_t m_bip44CoinType = CChainParams().BIP44CoinType();
@@ -63,7 +65,7 @@ public:
     bool EncryptWithMasterKey(const v_uint8& data, const uint256& nIV, v_uint8& encryptedData);
     bool DecryptWithMasterKey(const v_uint8& encryptedData, const uint256& nIV, v_uint8& data);
 
-    // Address specific functions
+    // Address-specific functions
     // If address is not created by MakeNewAddress function:
     //      it cannot be used for signing/verification;
     //      won't be returned by GetAddress and GetAddresses function;
@@ -74,6 +76,7 @@ public:
     [[nodiscard]] uint32_t GetAddressesCount();
     [[nodiscard]] vector<string> GetAddresses(NetworkMode mode = NetworkMode::MAINNET);
     [[nodiscard]] string GetNewLegacyAddress(NetworkMode mode = NetworkMode::MAINNET);
+    [[nodiscard]] string ImportLegacyPrivateKey(const string& encoded_key, NetworkMode mode = NetworkMode::MAINNET);
 
     // PastelID specific functions
     // If PastelID is not created by MakeNewPastelID function:
@@ -90,7 +93,7 @@ public:
     [[nodiscard]] string SignWithPastelID(const string& pastelID, const string& message, PastelIDType type = PastelIDType::PASTELID, bool fBase64 = false);
     [[nodiscard]] bool VerifyWithPastelID(const string& pastelID, const string& message, const string& signature, bool fBase64 = false);
     [[nodiscard]] bool VerifyWithLegRoast(const string& lrPubKey, const string& message, const string& signature, bool fBase64 = false);
-    [[nodiscard]] bool AddExternalPastelID();
+    [[nodiscard]] bool ImportPastelIDKeys(const string& pastelID, SecureString&& password, const string& pastelIDDir);
     void ExportPastelIDKeys(const string& pastelID, SecureString&& passPhrase, const string& sDirPath);
 
     // Account specific functions
@@ -124,6 +127,7 @@ public:
     }
 
     [[nodiscard]] string GetSecret(uint32_t addrIndex, NetworkMode mode = NetworkMode::MAINNET);
+    [[nodiscard]] string GetSecret(const string& address, NetworkMode mode = NetworkMode::MAINNET);
 
     [[nodiscard]] std::optional<CPubKey> GetPubKey(const CKeyID& keyID);
 protected:

@@ -17,11 +17,11 @@
 #include "pastelid/pastel_key.h"
 #include "pastelid/legroast.h"
 #include "pastelid/common.h"
-
-#include "transaction/transaction.h"
+#include "pastelid/secure_container.h"
 
 using namespace legroast;
 using namespace crypto_helpers;
+using namespace secure_container;
 
 string CHDWallet::SetupNewWallet(const SecureString &password) {
     return setupNewWalletImpl(password, []() -> std::optional<MnemonicSeed> {
@@ -38,7 +38,7 @@ string CHDWallet::SetupNewWallet(const SecureString &password) {
 }
 
 string CHDWallet::setupNewWalletImpl(const SecureString &password, const std::function<std::optional<MnemonicSeed>()>& getSeed) {
-    // Generate new random master key and encrypt it using key derived from password
+    // Generate a new random master key and encrypt it using a key derived from password
     string error;
     if (!setMasterKey(password, error)) {
         stringstream ss;
@@ -218,15 +218,38 @@ void CHDWallet::Unlock(const SecureString &strPassphrase) {
     // Get and encode public key
     const CKeyID keyID = newKey.GetID();
     auto strAddress = encodeAddress(keyID, mode);
-    m_addressMapNonHD[strAddress] = secret;
+    m_addressMapLegacy[strAddress] = secret;
+    return strAddress;
+}
+
+[[nodiscard]] string CHDWallet::ImportLegacyPrivateKey(const string& encoded_key, NetworkMode mode) {
+    string error;
+    KeyIO keyIO(GetChainParams(mode));
+    const auto secret = keyIO.DecodeSecret(encoded_key, error);
+    if (!secret.IsValid()) {
+        throw runtime_error(fmt::format("Failed to decode secret {}", error));
+    }
+
+    const CPubKey newKey = secret.GetPubKey();
+    if (!secret.VerifyPubKey(newKey)) {
+        throw runtime_error("Failed to verify public key");
+    }
+
+    // Get and encode public key
+    const CKeyID keyID = newKey.GetID();
+    auto strAddress = encodeAddress(keyID, mode);
+    m_addressMapLegacy[strAddress] = secret;
     return strAddress;
 }
 
 [[nodiscard]] vector<string> CHDWallet::GetAddresses(NetworkMode mode) {
     vector<string> addresses;
     addresses.reserve(m_keyIdIndexMap.size());
-    for (const auto &pair: m_keyIdIndexMap) {
-        addresses.push_back(encodeAddress(pair.first, mode));
+    for (const auto& key : m_keyIdIndexMap | views::keys) {
+        addresses.push_back(encodeAddress(key, mode));
+    }
+    for (const auto& key : m_addressMapLegacy | views::keys) {
+        addresses.push_back(key);
     }
     return addresses;
 }
@@ -241,12 +264,30 @@ void CHDWallet::Unlock(const SecureString &strPassphrase) {
 }
 
 [[nodiscard]] string CHDWallet::GetSecret(uint32_t addrIndex, NetworkMode mode){
-    KeyIO keyIO(GetChainParams(mode));
     auto key = GetKey(addrIndex);
     if (key.has_value()) {
+        KeyIO keyIO(GetChainParams(mode));
         return keyIO.EncodeSecret(key.value());
     }
     return "";
+}
+
+[[nodiscard]] string CHDWallet::GetSecret(const string& address, NetworkMode mode) {
+    if (IsLocked()) {
+        throw runtime_error("Wallet is locked");
+    }
+
+    auto keyID = decodeAddress(address, mode);
+    if (keyID.has_value()) {
+        KeyIO keyIO(GetChainParams(mode));
+        if (auto key = GetKey(keyID.value()); key.has_value()) {
+            return keyIO.EncodeSecret(key.value());
+        }
+        if (m_addressMapLegacy.contains(address)) {
+            return keyIO.EncodeSecret(m_addressMapLegacy[address]);
+        }
+    }
+    throw runtime_error("Address not found");
 }
 
 [[nodiscard]] optional<CKey> CHDWallet::GetKey(const CKeyID& keyID) {
@@ -308,8 +349,7 @@ string CHDWallet::encodeAddress(const CKeyID &id, NetworkMode mode) noexcept {
 
 optional<CKeyID> CHDWallet::decodeAddress(const string& address, NetworkMode mode) noexcept {
     KeyIO keyIO(GetChainParams(mode));
-    auto destination = keyIO.DecodeDestination(address);
-    if (IsKeyDestination(destination)){
+    if (auto destination = keyIO.DecodeDestination(address); IsKeyDestination(destination)){
         return std::get<CKeyID>(destination);
     }
     return nullopt;
@@ -410,11 +450,20 @@ string CHDWallet::GetPastelID(const string &pastelID, PastelIDType type) {
     if (m_pastelIDIndexMap.contains(pastelID)) {
         if (type == PastelIDType::PASTELID) {
             return pastelID;
-        } else if (type == PastelIDType::LEGROAST) {
-            return m_pastelIDLegRoastMap[pastelID];
-        } else {
-            throw runtime_error("Invalid PastelID type");
         }
+        if (type == PastelIDType::LEGROAST) {
+            return m_pastelIDLegRoastMap[pastelID];
+        }
+        throw runtime_error("Invalid PastelID type");
+    }
+    if (m_externalPastelIDs.contains(pastelID)) {
+        if (type == PastelIDType::PASTELID) {
+            return pastelID;
+        }
+        if (type == PastelIDType::LEGROAST) {
+            return m_externalPastelIDs[pastelID].m_legRoastPubKey;
+        }
+        throw runtime_error("Invalid PastelID type");
     }
     throw runtime_error("PastelID not found");
 }
@@ -423,11 +472,11 @@ string CHDWallet::GetPastelID(const string &pastelID, PastelIDType type) {
     if (m_indexPastelIDMap.contains(pastelIDIndex)) {
         if (type == PastelIDType::PASTELID) {
             return ed448_privkey(makePastelIDSeed(pastelIDIndex, PastelIDType::PASTELID));
-        } else if (type == PastelIDType::LEGROAST) {
-            return legroast_privkey(makePastelIDSeed(pastelIDIndex, PastelIDType::LEGROAST));
-        } else {
-            throw runtime_error("Invalid PastelID type");
         }
+        if (type == PastelIDType::LEGROAST) {
+            return legroast_privkey(makePastelIDSeed(pastelIDIndex, PastelIDType::LEGROAST));
+        }
+        throw runtime_error("Invalid PastelID type");
     }
     throw runtime_error("PastelID not found");
 }
@@ -445,6 +494,8 @@ string CHDWallet::GetPastelID(const string &pastelID, PastelIDType type) {
         } else if (type == PastelIDType::LEGROAST) {
             DecryptWithMasterKey(externalPastelID.m_encryptedLegRoastKey.second,
                                  externalPastelID.m_encryptedLegRoastKey.first, key);
+        } else {
+            throw runtime_error("Invalid PastelID type");
         }
         return key;
     }
@@ -454,27 +505,38 @@ string CHDWallet::GetPastelID(const string &pastelID, PastelIDType type) {
 [[nodiscard]] vector<string> CHDWallet::GetPastelIDs() {
     vector<string> pastelIDs;
     pastelIDs.reserve(m_pastelIDIndexMap.size() + m_externalPastelIDs.size());
-    for (const auto &pair: m_pastelIDIndexMap) {
-        pastelIDs.push_back(pair.first);
+    for (const auto& key : m_pastelIDIndexMap | views::keys) {
+        pastelIDs.push_back(key);
     }
-    for (const auto &pair: m_externalPastelIDs) {
-        pastelIDs.push_back(pair.first);
+    for (const auto& key : m_externalPastelIDs | views::keys) {
+        pastelIDs.push_back(key);
     }
     return pastelIDs;
 }
 
 [[nodiscard]] string CHDWallet::SignWithPastelID(const string& pastelID, const string& message, PastelIDType type, bool fBase64){
-    if (!m_pastelIDIndexMap.contains(pastelID))
-        throw runtime_error("PastelID not found");
-    auto pastelIDIndex = m_pastelIDIndexMap[pastelID];
-
-    if (type == PastelIDType::PASTELID) {
-        return ed448_sign(makePastelIDSeed(pastelIDIndex, PastelIDType::PASTELID), message, fBase64? encoding::base64 : encoding::none);
-    } else if (type == PastelIDType::LEGROAST) {
-        return legroast_sign(makePastelIDSeed(pastelIDIndex, PastelIDType::LEGROAST), message, fBase64? encoding::base64 : encoding::none);
-    } else {
+    if (m_pastelIDIndexMap.contains(pastelID))
+    {
+        const auto pastelIDIndex = m_pastelIDIndexMap[pastelID];
+        if (type == PastelIDType::PASTELID) {
+            return ed448_sign(makePastelIDSeed(pastelIDIndex, PastelIDType::PASTELID), message, fBase64? encoding::base64 : encoding::none);
+        }
+        if (type == PastelIDType::LEGROAST) {
+            return legroast_sign(makePastelIDSeed(pastelIDIndex, PastelIDType::LEGROAST), message, fBase64? encoding::base64 : encoding::none);
+        }
         throw runtime_error("Invalid PastelID type");
     }
+    if (m_externalPastelIDs.contains(pastelID)) {
+        auto key = GetPastelIDKey(pastelID, type);
+        if (type == PastelIDType::PASTELID) {
+            return ed448_sign(std::move(key), message, fBase64? encoding::base64 : encoding::none);
+        }
+        if (type == PastelIDType::LEGROAST) {
+            return legroast_sign(std::move(key), message, fBase64? encoding::base64 : encoding::none);
+        }
+        throw runtime_error("Invalid PastelID type");
+    }
+    throw runtime_error("PastelID not found");
 }
 
 [[nodiscard]] bool CHDWallet::VerifyWithPastelID(const string& pastelID, const string& message, const string& signature, bool fBase64){
@@ -485,10 +547,31 @@ string CHDWallet::GetPastelID(const string &pastelID, PastelIDType type) {
     return legroast_verify(lrPubKey, message, signature, fBase64? encoding::base64 : encoding::hex);
 }
 
-[[nodiscard]] bool CHDWallet::AddExternalPastelID() {
-//    auto pKey = LegRoastKey.get_private_key();
-//    auto fingerprint = CPastelID::LegRoastFingerprint(pKey);
-//    EncryptWithMasterKey(pKey, uint256(), legroast);
+[[nodiscard]] bool CHDWallet::ImportPastelIDKeys(const string& pastelID, SecureString&& password, const string& pastelIDDir) {
+    const std::filesystem::path dir(pastelIDDir);
+    const std::filesystem::path file(pastelID);
+    const std::filesystem::path full_path = dir / file;
+
+    CSecureContainer cont;
+    cont.read_from_file(full_path.string(), password);
+    auto pk_legroast = cont.extract_secure_data(SECURE_ITEM_TYPE::pkey_legroast);
+    auto pk_ed448 = cont.extract_secure_data(SECURE_ITEM_TYPE::pkey_ed448);
+    string pub_legroast;
+    cont.get_public_data(PUBLIC_ITEM_TYPE::pubkey_legroast, pub_legroast);
+
+    auto fp_legroast = CPastelID::LegRoastFingerprint(pk_legroast);
+    auto fp_ed448 = CPastelID::PastelIDFingerprint(pk_ed448);
+
+    v_uint8 enc_pk_legroast, enc_pk_ed448;
+    EncryptWithMasterKey(pk_legroast, fp_legroast, enc_pk_legroast);
+    EncryptWithMasterKey(pk_ed448, fp_ed448, enc_pk_ed448);
+
+    m_externalPastelIDs[pastelID] = external_pastel_id{
+        {fp_ed448, enc_pk_ed448},
+        {fp_legroast, enc_pk_legroast},
+        pub_legroast
+    };
+
     return true;
 }
 

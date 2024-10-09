@@ -4,7 +4,6 @@
 // file COPYING or https://www.opensource.org/licenses/mit-license.php.
 
 #include <string>
-#include <optional>
 #include <types.h>
 
 #include "chain.h"
@@ -44,6 +43,7 @@ public:
     string VerifyWithPastelID(const string& pastelID, const string& message, const string& signature, bool fBase64 = false);
     string VerifyWithLegRoast(const string& lrPubKey, const string& message, const string& signature, bool fBase64 = false);
     string ExportPastelIDKeys(const string& pastelID, string passPhrase, const string& sDirPath);
+    string ImportPastelIDKeys(const string& pastelID, string passPhrase, const string& sDirPath);
 
     // Key functions
     string GetWalletPubKey();                   // returns base58 encoded Public Key, w/o prefix and checksum
@@ -51,6 +51,7 @@ public:
     string GetPubKeyAt(uint32_t addrIndex);     // returns base58 encoded Public Key, w/o prefix and checksum
     string SignWithKeyAt(uint32_t addrIndex, string message);
     string GetSecret(uint32_t addrIndex, NetworkMode mode = NetworkMode::MAINNET);
+    string GetSecret(const string& address, NetworkMode mode = NetworkMode::MAINNET);
 
     // Transaction functions
     string CreateSendToTransaction(NetworkMode mode,
@@ -102,7 +103,7 @@ class PastelSigner {
     string m_pastelIDDir;
 
 public:
-    PastelSigner(const string& pastelID_dir);
+    explicit PastelSigner(const string& pastelID_dir);
     [[nodiscard]] string SignWithPastelID(const string& message, const string& pastelID, const string& password);
     [[nodiscard]] string SignWithPastelIDBase64(const string& messageBase64, const string& pastelID, const string& password);
     bool VerifyWithPastelID(const string& message, const string& signature, const string& pastelID);

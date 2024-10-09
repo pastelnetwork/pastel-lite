@@ -94,7 +94,7 @@ CKey KeyIO::DecodeSecret(const string& str, string& error)
         const auto& privkey_prefix = m_KeyConstants.Base58Prefix(KeyConstants::Base58Type::SECRET_KEY);
         // check that:
         //   - key string is exactly 32 bytes or 32 bytes with trailing compression flag
-        //   - key string starts with secret key prefix
+        //   - key string starts with a secret key prefix
         const auto nKeySize = privkey_prefix.size() + CKey::KEY_SIZE;
         if  ((data.size() == nKeySize ||
             ((data.size() == nKeySize + 1) && data.back() == 1)) &&

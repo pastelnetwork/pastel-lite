@@ -24,7 +24,18 @@ set_target_properties(libpastel_wasm PROPERTIES
     SUFFIX ".html"  # This will generate an HTML file that loads the WASM module
     COMPILE_FLAGS "-gsource-map"
 #    LINK_FLAGS "--bind -s WASM=1 -s ALLOW_MEMORY_GROWTH=1 -s NO_EXIT_RUNTIME=1 -s FILESYSTEM=1 -s DISABLE_EXCEPTION_CATCHING=0 -gsource-map"
-    LINK_FLAGS "--bind -s WASM=1 -s ALLOW_MEMORY_GROWTH=1 -s NO_EXIT_RUNTIME=1 -s FILESYSTEM=1 -gsource-map"
+#    LINK_FLAGS "--bind -s WASM=1 -s ALLOW_MEMORY_GROWTH=1 -s NO_EXIT_RUNTIME=1 -s FILESYSTEM=1 -sEXPORTED_RUNTIME_METHODS=['FS'] -gsource-map"
+)
+
+target_link_options(libpastel_wasm PRIVATE
+        "--bind"
+        "-sWASM=1"
+        "-sALLOW_MEMORY_GROWTH=1"
+        "-sNO_EXIT_RUNTIME=1"
+        "-sFILESYSTEM=1"
+        "-sEXPORTED_RUNTIME_METHODS=['FS']"
+        "-gsource-map"
+        "-lidbfs.js"
 )
 
 target_link_libraries(libpastel_wasm "${FMT_WASM_DIR}/lib/libfmt.a")
