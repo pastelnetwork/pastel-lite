@@ -56,14 +56,12 @@ class CHDWallet
     CDevnetParams m_devnetParams;
 
 public:
+    // Wallet functions
     [[nodiscard]] string SetupNewWallet(const SecureString& password);
     [[nodiscard]] string SetupNewWalletFromMnemonic(const SecureString& password, const SecureString& mnemonic);
     void Lock();
     void Unlock(const SecureString& strPassphrase);
     [[nodiscard]] bool IsLocked() const {return m_vMasterKey.empty();}
-
-    bool EncryptWithMasterKey(const v_uint8& data, const uint256& nIV, v_uint8& encryptedData);
-    bool DecryptWithMasterKey(const v_uint8& encryptedData, const uint256& nIV, v_uint8& data);
 
     // Address-specific functions
     // If address is not created by MakeNewAddress function:
@@ -73,9 +71,11 @@ public:
     //      and won't be serialized
     [[nodiscard]] string MakeNewAddress(NetworkMode mode = NetworkMode::MAINNET);
     [[nodiscard]] string GetAddress(uint32_t addrIndex, NetworkMode mode = NetworkMode::MAINNET);
+    // GetAddressesCount - returns the number of addresses created by MakeNewAddress function
     [[nodiscard]] uint32_t GetAddressesCount();
+    // GetAddresses - returns addresses created by the MakeNewAddress AND MakeNewLegacyAddress AND imported by ImportLegacyPrivateKey
     [[nodiscard]] vector<string> GetAddresses(NetworkMode mode = NetworkMode::MAINNET);
-    [[nodiscard]] string GetNewLegacyAddress(NetworkMode mode = NetworkMode::MAINNET);
+    [[nodiscard]] string MakeNewLegacyAddress(NetworkMode mode = NetworkMode::MAINNET);
     [[nodiscard]] string ImportLegacyPrivateKey(const string& encoded_key, NetworkMode mode = NetworkMode::MAINNET);
 
     // PastelID specific functions
@@ -97,13 +97,16 @@ public:
     void ExportPastelIDKeys(const string& pastelID, SecureString&& passPhrase, const string& sDirPath);
 
     // Account specific functions
-    // All functions returns base58 encoded strings w/o prefix and checksum
+    // All functions return base58 encoded strings w/o prefix and checksum
     [[nodiscard]] string GetWalletPubKey();
     [[nodiscard]] string SignWithWalletKey(string message);
     [[nodiscard]] string GetPubKeyAt(uint32_t addrIndex);
     // Function will use any key for signing/verification, not only if it was created by MakeNewAddress function
     [[nodiscard]] string SignWithKeyAt(uint32_t addrIndex, string message);
 
+    // Key functions - functions return base58 encoded strings WITH prefix and checksum
+    [[nodiscard]] string GetSecret(uint32_t addrIndex, NetworkMode mode = NetworkMode::MAINNET);
+    [[nodiscard]] string GetSecret(const string& address, NetworkMode mode = NetworkMode::MAINNET);
 
     ADD_SERIALIZE_METHODS;
     template <typename Stream, typename Operation>
@@ -125,17 +128,14 @@ public:
         }
         READWRITE(m_externalPastelIDs);
     }
-
-    [[nodiscard]] string GetSecret(uint32_t addrIndex, NetworkMode mode = NetworkMode::MAINNET);
-    [[nodiscard]] string GetSecret(const string& address, NetworkMode mode = NetworkMode::MAINNET);
-
-    [[nodiscard]] std::optional<CPubKey> GetPubKey(const CKeyID& keyID);
 protected:
-    [[nodiscard]] std::optional<CKey> GetKey(const CKeyID& keyID);
-    [[nodiscard]] std::optional<CKey> GetKey(uint32_t addrIndex);
+    [[nodiscard]] std::optional<CKey> _getDerivedKeyAt(uint32_t addrIndex);
+    [[nodiscard]] std::optional<CKey> _getDerivedKey(const CKeyID& keyID);
+    [[nodiscard]] std::optional<CKey> _getLegacyKey(const CKeyID& keyID);
+    [[nodiscard]] std::optional<CPubKey> _getPubKey(const CKeyID& keyID);
 
-    [[nodiscard]] v_uint8 GetPastelIDKey(uint32_t pastelIDIndex, PastelIDType type = PastelIDType::PASTELID);
-    [[nodiscard]] v_uint8 GetPastelIDKey(const string& pastelID, PastelIDType type = PastelIDType::PASTELID);
+    [[nodiscard]] v_uint8 _getPastelIDKey(uint32_t pastelIDIndex, PastelIDType type = PastelIDType::PASTELID);
+    [[nodiscard]] v_uint8 _getPastelIDKey(const string& pastelID, PastelIDType type = PastelIDType::PASTELID);
 
 private:
     // function accepts lambda to get seed
@@ -144,12 +144,13 @@ private:
     bool setMasterKey(const SecureString& strPassphrase, string& error = (string &) "") noexcept;
     bool setEncryptedMnemonicSeed(const MnemonicSeed& seed, string& error = (string &) "") noexcept;
     [[nodiscard]] std::optional<MnemonicSeed> getDecryptedMnemonicSeed() noexcept;
-    [[nodiscard]] std::optional<CExtKey> getExtKey(uint32_t addrIndex);
+    bool encryptWithMasterKey(const v_uint8& data, const uint256& nIV, v_uint8& encryptedData);
+    bool decryptWithMasterKey(const v_uint8& encryptedData, const uint256& nIV, v_uint8& data);
 
+    [[nodiscard]] std::optional<CExtKey> getExtKey(uint32_t addrIndex);
     [[nodiscard]] std::optional<AccountKey> getAccountKey() noexcept;
 
     [[nodiscard]] const v_uint8& getNetworkPrefix(NetworkMode mode, CChainParams::Base58Type type);
-
     string encodeAddress(const CKeyID& id, NetworkMode mode) noexcept;
     std::optional<CKeyID> decodeAddress(const string& address, NetworkMode mode) noexcept;
     string encodeExtPubKey(const CExtPubKey& key, NetworkMode mode) noexcept;

@@ -6,6 +6,7 @@
 #include "libpastel.h"
 #include "support/decoder.hpp"
 
+#define PASTEL_ID_PATH "/home/alexey/work/Pastel/pastel-lite/python_bindings"
 
 namespace testWallet {
     string testCreateWallet(Pastel &lib, const std::string &password) {
@@ -392,7 +393,7 @@ namespace testSendToJSON {
 
 namespace testSigner1 {
     void run() {
-        PastelSigner lib("/home/alexey/work/Pastel/pastel-lite/python_bindings");
+        PastelSigner lib(PASTEL_ID_PATH);
         auto start1 = std::chrono::high_resolution_clock::now();
         auto signature1 = lib.SignWithPastelID(
                 "test message",
@@ -419,7 +420,7 @@ namespace testSigner1 {
 
 namespace testSigner2 {
     void run() {
-        PastelSigner lib("/Users/alexey/Work/Pastel/pastel-lite/python_bindings");
+        PastelSigner lib(PASTEL_ID_PATH);
         auto pastelID = lib.GetPastelID(
                 "jXYZbUhjAu6VM84LtggkGV9TR9EFjYAcZbdXdyor5aT7tjPsy3ZkzcDLGmx1ZtoTJNXoAVv2CDkBzx8T94XNDw", "passphrase");
         auto start2 = std::chrono::high_resolution_clock::now();
@@ -510,12 +511,11 @@ namespace testExternalPastelID
         const auto walletPassword = "password";
         testWallet::testCreateWallet(lib, walletPassword);
 
-        const auto pastel_dir = "/home/alexey/work/Pastel/pastel-lite/python_bindings";
         const auto pastel_id = "jXXmQdZPF5mT6kxPr2Z3HNWsNKoZedC2gFdmwoAQr1e4kD5Jtw6BryZD8fJzZAgc2iAdMsUZ3aGfzE4ccrKkEo";
         const auto password = "passphrase";
         const auto message = "test";
 
-        std::cout << lib.ImportPastelIDKeys(pastel_id, password, pastel_dir) << std::endl;
+        std::cout << lib.ImportPastelIDKeys(pastel_id, password, PASTEL_ID_PATH) << std::endl;
 
         auto pub_ed448 = decodeStringResponse(lib.GetPastelID(pastel_id, PastelIDType::PASTELID));
         std::cout << "PastelID pub key: " << pub_ed448 << std::endl;
@@ -534,26 +534,45 @@ namespace testExternalPastelID
 }
 
 int main() {
-    testWallet::run();
-    testWallet::run2();
-    testSendTo::run();
-    testSendToJSON::run();
+    // testWallet::run();
+    // testWallet::run2();
+    // testSendTo::run();
+    // testSendToJSON::run();
+    // testExternalWallet::run();
+    // testExternalPastelID::run();
+
+    Pastel lib;
+    testWallet::testCreateWallet(lib, "password");
+    for (const auto addresses = testWallet::testNewAddresses(lib, 2, 0, NetworkMode::MAINNET);
+        const auto& address : addresses) {
+        auto secret = lib.GetAddressSecret(address, NetworkMode::MAINNET);
+        std::cout << "Address: " << address << "; Private key: " << secret << std::endl;
+    }
+    const auto orig_address = "PtiMyKSofCEt9X9FuaXDzjhyvZ27uadqXsa";
+    const auto orig_privKey = "Kxb6W74ZrtRTZX7viSUtWeJxvSaxxfcQpCCpSuore2VR8vv9kM37";
+    const auto imp_address = decodeStringResponse(lib.ImportLegacyPrivateKey(orig_privKey, NetworkMode::MAINNET));
+    const auto imp_privKey = decodeStringResponse(lib.GetAddressSecret(orig_address, NetworkMode::MAINNET));
+    std::cout << imp_address << std::endl;
+    std::cout << imp_privKey << std::endl;
+    assert(imp_address == orig_address);
+    assert(imp_privKey == orig_privKey);
+
+    for (const auto addresses = decodeVectorStringResponse(lib.GetAddresses(NetworkMode::MAINNET));
+        const auto& address : addresses) {
+        auto secret = lib.GetAddressSecret(address, NetworkMode::MAINNET);
+        std::cout << "Address: " << address << "; Private key: " << secret << std::endl;
+    }
 
     // testSigner1::run();
     // testSigner1::run();
     // testSigner1::run();
     // testSigner1::run();
     // testSigner1::run();
-    //
     // testSigner2::run();
     // testSigner2::run();
     // testSigner2::run();
     // testSigner2::run();
     // testSigner2::run();
-
-    testExternalWallet::run();
-
-    testExternalPastelID::run();
 #if 0
 //    auto walletStr = "L9we22TUta29d4255xWN5u6z8xyqV8VDygDPCCe6o2S6A6LR2FD6PN2tA4rFxeVtcJ2ugjHEBsB52GRVWes4kna4D3Y1n2xeWC9RJf4gtdor76LiNBuDBMBRyh6jXs3HsetM1vf1yGSiZj7UJP5nbzsDCNXWxDWoexGhbmQYVgtorTeriat9G9RiHcnFBGepnZx7va6WfFFe44TV56aue6tcLZKgNzJVRY146JcKZ5tEN8SF3SJqHzdHe3SvkRGKsEmoQDgtw2ZQYS8KDnPcP2LAXRcRT7TjJzo7pp21fq5cx4Yc42XnNU9zVrjPF8FxSSUojonn1kXKCKi6BHDJy5NAujGsLyt2wfHpy1L6iYPkEmdbRFGXQyzGqEAxtsXhMCUtgg8hNkDBZNJexY6WAe9mjXP9X9R";
 //    Pastel lib2;

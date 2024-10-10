@@ -20,6 +20,7 @@ Pastel::Pastel() {
     init_and_check_sodium();
 }
 
+// Wallet functions
 string Pastel::CreateNewWallet(const string &password) {
     return wrapResponse([&]() {
         return m_HDWallet.SetupNewWallet(password);
@@ -65,6 +66,7 @@ string Pastel::LockWallet() {
     });
 }
 
+// Address functions
 string Pastel::MakeNewAddress(NetworkMode mode) {
     return wrapResponse([&]() {
         return m_HDWallet.MakeNewAddress(mode);
@@ -89,30 +91,19 @@ string Pastel::GetAddresses(NetworkMode mode) {
     });
 }
 
-string Pastel::GetWalletPubKey() {
+string Pastel::MakeNewLegacyAddress(NetworkMode mode) {
     return wrapResponse([&]() {
-        return m_HDWallet.GetWalletPubKey();
+        return m_HDWallet.MakeNewLegacyAddress(mode);
     });
 }
 
-string Pastel::SignWithWalletKey(string message) {
+string Pastel::ImportLegacyPrivateKey(const string& encoded_key, NetworkMode mode) {
     return wrapResponse([&]() {
-        return m_HDWallet.SignWithWalletKey(message);
+        return m_HDWallet.ImportLegacyPrivateKey(encoded_key, mode);
     });
 }
 
-string Pastel::GetPubKeyAt(uint32_t addrIndex) {
-    return wrapResponse([&]() {
-        return m_HDWallet.GetPubKeyAt(addrIndex);
-    });
-}
-
-string Pastel::SignWithKeyAt(uint32_t addrIndex, string message) {
-    return wrapResponse([&]() {
-        return m_HDWallet.SignWithKeyAt(addrIndex, message);
-    });
-}
-
+// PastelID functions
 string Pastel::MakeNewPastelID(bool makeLegRoast)
 {
     return wrapResponse([&]() {
@@ -177,13 +168,39 @@ string Pastel::ImportPastelIDKeys(const string& pastelID, string passPhrase, con
     });
 }
 
+// Account specific functions
+string Pastel::GetWalletPubKey() {
+    return wrapResponse([&]() {
+        return m_HDWallet.GetWalletPubKey();
+    });
+}
+
+string Pastel::SignWithWalletKey(string message) {
+    return wrapResponse([&]() {
+        return m_HDWallet.SignWithWalletKey(message);
+    });
+}
+
+string Pastel::GetPubKeyAt(uint32_t addrIndex) {
+    return wrapResponse([&]() {
+        return m_HDWallet.GetPubKeyAt(addrIndex);
+    });
+}
+
+string Pastel::SignWithKeyAt(uint32_t addrIndex, string message) {
+    return wrapResponse([&]() {
+        return m_HDWallet.SignWithKeyAt(addrIndex, message);
+    });
+}
+
+
 string Pastel::GetSecret(uint32_t addrIndex, NetworkMode mode) {
     return wrapResponse([&]() {
         return m_HDWallet.GetSecret(addrIndex, mode);
     });
 }
 
-string Pastel::GetSecret(const string& address, NetworkMode mode) {
+string Pastel::GetAddressSecret(const string& address, NetworkMode mode) {
     return wrapResponse([&]() {
         return m_HDWallet.GetSecret(address, mode);
     });
@@ -343,6 +360,7 @@ EMSCRIPTEN_BINDINGS(PastelModule) {
         .function("GetAddress", &Pastel::GetAddress)
         .function("GetAddressesCount", &Pastel::GetAddressesCount)
         .function("GetAddresses", &Pastel::GetAddresses)
+        .function("ImportLegacyPrivateKey", &Pastel::ImportLegacyPrivateKey)
 
         .function("MakeNewPastelID", &Pastel::MakeNewPastelID)
         .function("GetPastelIDByIndex", &Pastel::GetPastelIDByIndex)
@@ -359,6 +377,7 @@ EMSCRIPTEN_BINDINGS(PastelModule) {
         .function("SignWithWalletKey", &Pastel::SignWithWalletKey)
         .function("GetPubKeyAt", &Pastel::GetPubKeyAt)
         .function("SignWithKeyAt", &Pastel::SignWithKeyAt)
+        .function("GetAddressSecret", &Pastel::GetAddressSecret)
 
         .function("CreateSendToTransaction", &Pastel::CreateSendToTransactionJson)
         .function("CreateRegisterPastelIdTransaction", &Pastel::CreateRegisterPastelIdTransactionJson)

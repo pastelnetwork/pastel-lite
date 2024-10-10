@@ -10,9 +10,13 @@ using namespace std;
 
 bool Signer::CreateSig(v_uint8& vchSig, const CKeyID& keyId, const CScript& scriptCode, const TransactionData& txData)
 {
-    auto key = m_hdWallet.GetKey(keyId);
+    auto key = m_hdWallet._getDerivedKey(keyId);
     if (!key.has_value())
-        return false;
+    {
+        key = m_hdWallet._getLegacyKey(keyId);
+        if (!key.has_value())
+            return false;
+    }
 
     uint256 hash;
     try {
@@ -80,7 +84,7 @@ bool Signer::SignStep(const CScript& scriptPubKey, vector<v_uint8>& ret, const T
             keyID = CKeyID(uint160(vSolutions[0])); // get keyID from pub key hash
             if (!Sign1(keyID, scriptPubKey, ret, txData))
                 return false;
-            auto pubKey = m_hdWallet.GetPubKey(keyID);    // Find PubKey by keyID
+            auto pubKey = m_hdWallet._getPubKey(keyID);    // Find PubKey by keyID
             if (pubKey.has_value()) {
                 ret.push_back(ToByteVector(pubKey.value()));
                 return true;
@@ -89,7 +93,7 @@ bool Signer::SignStep(const CScript& scriptPubKey, vector<v_uint8>& ret, const T
         }
         case TX_MULTISIG:
             // scriptSig is `OP_0 <signature1> <signature2> ... <signatureM>`
-            ret.emplace_back(); // workaround CHECKMULTISIG bug
+            ret.emplace_back(); // work around CHECKMULTISIG bug
             return (SignN(vSolutions, scriptPubKey, ret, txData));
         default:
             return false;

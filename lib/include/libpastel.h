@@ -32,6 +32,8 @@ public:
     string GetAddress(uint32_t addrIndex, NetworkMode mode = NetworkMode::MAINNET);
     string GetAddressesCount();
     string GetAddresses(NetworkMode mode = NetworkMode::MAINNET);
+    string MakeNewLegacyAddress(NetworkMode mode = NetworkMode::MAINNET);
+    string ImportLegacyPrivateKey(const string& encoded_key, NetworkMode mode = NetworkMode::MAINNET);
 
     // PastelID functions
     string MakeNewPastelID(bool makeLegRoast = true);
@@ -45,13 +47,16 @@ public:
     string ExportPastelIDKeys(const string& pastelID, string passPhrase, const string& sDirPath);
     string ImportPastelIDKeys(const string& pastelID, string passPhrase, const string& sDirPath);
 
-    // Key functions
+    // Account specific functions
+    // All functions returns base58 encoded strings w/o prefix and checksum
     string GetWalletPubKey();                   // returns base58 encoded Public Key, w/o prefix and checksum
     string SignWithWalletKey(string message);
     string GetPubKeyAt(uint32_t addrIndex);     // returns base58 encoded Public Key, w/o prefix and checksum
     string SignWithKeyAt(uint32_t addrIndex, string message);
+
+    // Key functions
     string GetSecret(uint32_t addrIndex, NetworkMode mode = NetworkMode::MAINNET);
-    string GetSecret(const string& address, NetworkMode mode = NetworkMode::MAINNET);
+    string GetAddressSecret(const string& address, NetworkMode mode = NetworkMode::MAINNET);
 
     // Transaction functions
     string CreateSendToTransaction(NetworkMode mode,
