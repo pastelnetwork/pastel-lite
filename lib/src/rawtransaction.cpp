@@ -17,7 +17,7 @@
 #include "rawtransaction.h"
 
 static constexpr uint32_t DEFAULT_TX_EXPIRY_DELTA = 20;
-static constexpr unsigned int DEFAULT_MIN_RELAY_TX_FEE = 30;
+static constexpr unsigned int DEFAULT_MIN_RELAY_TX_FEE = 2;
 static constexpr uint32_t TX_EXPIRING_SOON_THRESHOLD = 3;
 static constexpr CAmount DEFAULT_TRANSACTION_FEE = 0;
 static constexpr CAmount DEFAULT_TRANSACTION_MAX_FEE = static_cast<CAmount>(0.1 * COIN);
@@ -26,7 +26,7 @@ static constexpr int DATASTREAM_VERSION = 1;
 
 CAmount GetMinimumFee(const size_t nTxBytes) {
     CFeeRate payTxFee(DEFAULT_TRANSACTION_FEE);
-    CFeeRate minTxFee(1000);
+    CFeeRate minTxFee(0);
     CFeeRate minRelayTxFee(DEFAULT_MIN_RELAY_TX_FEE);
 
     CAmount nFeeNeeded = payTxFee.GetFee(nTxBytes);
@@ -71,101 +71,80 @@ void TransactionBuilder::validateAddress(const string &address) {
                 fmt::format("Not a valid transparent address {} used for funding the transaction", address));
 }
 
-void TransactionBuilder::setInputs(v_utxos &utxos) {
+void TransactionBuilder::setInputs(v_utxos& utxos) {
     // Sort the utxos by their values, ascending
-    sort(utxos.begin(), utxos.end(), [](const utxo &a, const utxo &b) {
+    sort(utxos.begin(), utxos.end(), [](const utxo& a, const utxo& b) {
         return a.value < b.value;
     });
-
-    // make few passes:
-    //  1) without tx fee, calculate exact required transaction fee at the end
-    //  2) with tx fee included, add inputs if required
-    //  3) if tx fee changes after adding inputs (tx size increased), repeat 2) again
 
     KeyIO keyIO(m_Params);
     CAmount nTotalValueInPat = 0;   // total value of all selected outputs in patoshis
     CAmount nTxFeeInPat = 0;        // transaction fee in patoshis
     uint32_t nPass = 0;
     constexpr uint32_t MAX_TXFEE_PASSES = 4;
+
     while (nPass < MAX_TXFEE_PASSES) {
-        if (nPass != 0) // Not the first pass
-        {
-            // calculate correct transaction fee based on the transaction size
+        if (nPass != 0) {
+            // Calculate correct transaction fee based on size
             size_t nTxSize = GetSerializeSize(m_mtx, SER_NETWORK, PROTOCOL_VERSION);
-            // add signature size for each input
             nTxSize += m_mtx.vin.size() * TX_SIGNATURE_SCRIPT_SIZE;
             CAmount nNewTxFeeInPat = GetMinimumFee(nTxSize);
 
-            // if the new fee is within 1% of the previous fee, then we are done
-            // but still will try to apply the new tx fee if it fits into the current inputs
             const bool bTxFeeApplied = abs(nNewTxFeeInPat - nTxFeeInPat) < nNewTxFeeInPat / 100;
-
-            // tx fee has changed, add more inputs to cover the new fee if required
             m_nAllSpentAmountInPat += (nNewTxFeeInPat - nTxFeeInPat);
             nTxFeeInPat = nNewTxFeeInPat;
 
             if (nTotalValueInPat >= m_nAllSpentAmountInPat) {
-                // we have enough coins to cover the new fee, no need to add more inputs
-                // just need to update the change output, send change (in patoshis) output back to the last input address
                 setChangeOutput(nTotalValueInPat - m_nAllSpentAmountInPat);
                 break;
             }
-            // we don't want more iterations to adjust the tx fee - it's already close enough
-            if (bTxFeeApplied)
-                break;
+            if (bTxFeeApplied) break;
         }
-        // Find funding (unspent) transactions with enough coins to cover all outputs
+
+        // Find funding transactions with enough coins
         int64_t nLastUsedOutputNo = -1;
-        for (const auto &utxo: utxos) {
+        for (const auto& utxo: utxos) {
             ++nLastUsedOutputNo;
 
-            if (m_sFromAddress.has_value()) // use utxo only from the specified funding address
-            {
-                if (utxo.address != m_sFromAddress)
-                    continue;
+            if (m_sFromAddress.has_value() && utxo.address != m_sFromAddress)
+                continue;
+
+            // Get destination and create appropriate script
+            CTxDestination destination = keyIO.DecodeDestination(utxo.address);
+            if (!IsValidDestination(destination)) {
+                throw runtime_error(string("Invalid Pastel address: ") + utxo.address);
             }
 
-            CTxDestination destination = keyIO.DecodeDestination(utxo.address);
-            if (!IsValidDestination(destination))
-                throw runtime_error(string("Invalid Pastel address: ") + utxo.address);
+            // Create standard P2PKH script from the address
             m_mInputPubKeys[utxo.address] = GetScriptForDestination(destination);
 
             CTxIn input;
             input.prevout.n = utxo.n;
             input.prevout.hash = uint256S(utxo.txid);
-            m_mtx.vin.emplace_back(std::move(input));
+            m_mtx.vin.push_back(input);
             m_vSelectedUTXOs.push_back(utxo);
 
             nTotalValueInPat += utxo.value;
-
             if (nTotalValueInPat >= m_nAllSpentAmountInPat)
-                break; // found enough coins
+                break;
         }
-        // return an error if we don't have enough coins to cover all outputs
+
         if (nTotalValueInPat < m_nAllSpentAmountInPat) {
-            if (m_vSelectedUTXOs.empty())
-                throw runtime_error(fmt::format("No unspent transaction found {} - cannot send data to the blockchain!",
-                                                m_sFromAddress.has_value() ?
-                                                fmt::format("for address {}", m_sFromAddress.value()) :
-                                                ""));
-            else
-                throw runtime_error(
-                        fmt::format(
-                                "Not enough coins in the unspent transactions {} to cover the spending of {} PSL. Cannot send data to the blockchain!",
-                                m_sFromAddress.has_value() ? fmt::format(" for address {}", m_sFromAddress.value()) : "",
-                                m_nAllSpentAmountInPat / COIN));
+            throw runtime_error(fmt::format(
+                "Not enough coins in unspent transactions{} to cover {} PSL",
+                m_sFromAddress.has_value() ? fmt::format(" for address {}", m_sFromAddress.value()) : "",
+                m_nAllSpentAmountInPat / COIN));
         }
-        // remove from vOutputs all selected outputs
-        if (!utxos.empty() && (nLastUsedOutputNo >= 0))
+
+        if (!utxos.empty() && nLastUsedOutputNo >= 0)
             utxos.erase(utxos.cbegin(), utxos.cbegin() + nLastUsedOutputNo + 1);
 
-        // Send change (in patoshis) output back to the last input address
         setChangeOutput(nTotalValueInPat - m_nAllSpentAmountInPat);
-
         ++nPass;
     }
+    
     if (nPass >= MAX_TXFEE_PASSES)
-        throw runtime_error(fmt::format("Could not calculate transaction fee. Cannot send data to the blockchain!"));
+        throw runtime_error("Could not calculate transaction fee - cannot send data to the blockchain!");
 }
 
 // add change at the END of vOut list - this is important for ticket transactions!!!
@@ -189,8 +168,16 @@ void TransactionBuilder::setChangeOutput(const CAmount nChange) {
 //}
 
 void TransactionBuilder::signTransaction(CHDWallet& hdWallet) {
+    if (hdWallet.IsLocked()) {
+        throw runtime_error("Cannot sign transaction - wallet is locked");
+    }
+    
     Signer signer(hdWallet);
     for (uint32_t i = 0; i < m_mtx.vin.size(); i++) {
+        if (hdWallet.IsLocked()) {
+            throw runtime_error("Wallet became locked during signing");
+        }
+        
         try {
             const auto &utxo = m_vSelectedUTXOs[i];
             const CScript &prevPubKey = m_mInputPubKeys[utxo.address];
@@ -317,17 +304,61 @@ std::string TransactionBuilder::TxToJSON()
     return entry.dump();
 }
 
-string SendToTransactionBuilder::Create(const sendto_addresses &sendTo, const string &sendFrom, v_utxos &utxos, CHDWallet& hdWallet) {
-    if (!sendFrom.empty()) {
-        validateAddress(sendFrom);
-        m_sFromAddress = sendFrom;
-    }
-    m_sendTo = sendTo;
+string SendToTransactionBuilder::Create(const sendto_addresses& sendTo, 
+                                        const string& sendFrom, 
+                                        v_utxos& utxos, 
+                                        CHDWallet& hdWallet) {
+    printf("Starting SendToTransactionBuilder::Create\n");
+    printf("From address: %s\n", sendFrom.c_str());
+    printf("UTXOs available: %zu\n", utxos.size());
 
-    setOutputs();
-    setInputs(utxos);
-    signTransaction(hdWallet);
-    return TxToJSON();
+    try {
+        // Assign sendTo to the member variable
+        m_sendTo = sendTo;
+
+        if (!sendFrom.empty()) {
+            printf("Validating sender address\n");
+            validateAddress(sendFrom);
+            m_sFromAddress = sendFrom;
+        }
+
+        printf("Setting outputs\n");
+        setOutputs();
+        
+        printf("Total amount to spend: %lld patoshis\n", m_nAllSpentAmountInPat);
+        printf("Setting inputs from UTXOs\n");
+        setInputs(utxos);
+        
+        printf("Transaction built with:\n");
+        printf("- Input count: %zu\n", m_mtx.vin.size());
+        printf("- Output count: %zu\n", m_mtx.vout.size());
+        printf("- Selected UTXO count: %zu\n", m_vSelectedUTXOs.size());
+
+        printf("Beginning transaction signing\n");
+        if (hdWallet.IsLocked()) {
+            printf("ERROR: HDWallet is locked before signing\n");
+            throw runtime_error("Wallet is locked");
+        }
+
+        for (size_t i = 0; i < m_vSelectedUTXOs.size(); i++) {
+            const auto& utxo = m_vSelectedUTXOs[i];
+            printf("Signing input %zu:\n", i);
+            printf("- Address: %s\n", utxo.address.c_str());
+            printf("- Amount: %lld\n", utxo.value);
+            printf("- TxId: %s\n", utxo.txid.c_str());
+            printf("- Index: %d\n", utxo.n);
+        }
+
+        signTransaction(hdWallet);
+        printf("Transaction signing completed\n");
+
+        string jsonTx = TxToJSON();
+        printf("Transaction JSON created, length: %zu\n", jsonTx.length());
+        return jsonTx;
+    } catch (const exception& e) {
+        printf("ERROR in SendToTransactionBuilder::Create: %s\n", e.what());
+        throw;
+    }
 }
 
 void SendToTransactionBuilder::setOutputs() {
@@ -342,7 +373,7 @@ void SendToTransactionBuilder::setOutputs() {
             throw runtime_error(string("Invalid parameter, duplicated address: ") + sendToItem.first);
 
         CScript scriptPubKey = GetScriptForDestination(destination);
-        CAmount nAmount = sendToItem.second * COIN;
+        CAmount nAmount = sendToItem.second;
         CTxOut out(nAmount, scriptPubKey);
 
         m_mtx.vout.push_back(out);

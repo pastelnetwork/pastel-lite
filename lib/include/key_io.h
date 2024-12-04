@@ -19,18 +19,18 @@ private:
     const KeyConstants& m_KeyConstants;
 
 public:
-	KeyIO(const KeyConstants& keyConstants) : m_KeyConstants(keyConstants) {}
+    KeyIO(const KeyConstants& keyConstants) : m_KeyConstants(keyConstants) {}
 
-	CKey DecodeSecret(const std::string& str, std::string &error);
-	std::string EncodeSecret(const CKey& key);
+    CKey DecodeSecret(const std::string& str, std::string& error); // Changed to return CKey
+    std::string EncodeSecret(const CKey& key);
 
-	CExtKey DecodeExtKey(const std::string& str);
-	std::string EncodeExtKey(const CExtKey& extkey);
-	CExtPubKey DecodeExtPubKey(const std::string& str);
-	std::string EncodeExtPubKey(const CExtPubKey& extpubkey);
+    CExtKey DecodeExtKey(const std::string& str);
+    std::string EncodeExtKey(const CExtKey& extkey);
+    CExtPubKey DecodeExtPubKey(const std::string& str);
+    std::string EncodeExtPubKey(const CExtPubKey& extpubkey);
 
-	std::string EncodeDestination(const CTxDestination& dest);
-	CTxDestination DecodeDestination(const std::string& str);
+    std::string EncodeDestination(const CTxDestination& dest);
+    CTxDestination DecodeDestination(const std::string& str);
 
-	bool IsValidDestinationString(const std::string& str);
+    bool IsValidDestinationString(const std::string& str);
 };

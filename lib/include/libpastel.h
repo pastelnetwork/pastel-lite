@@ -30,10 +30,10 @@ public:
     // Address functions
     string MakeNewAddress(NetworkMode mode = NetworkMode::MAINNET);
     string GetAddress(uint32_t addrIndex, NetworkMode mode = NetworkMode::MAINNET);
-    string GetAddressesCount();
-    string GetAddresses(NetworkMode mode = NetworkMode::MAINNET);
+    string GetAddressesCount();    // Returns total count of both HD and imported addresses
+    string GetAddresses(NetworkMode mode = NetworkMode::MAINNET);       // Returns all addresses (HD and imported) in deterministic order
     string MakeNewLegacyAddress(NetworkMode mode = NetworkMode::MAINNET);
-    string ImportLegacyPrivateKey(const string& encoded_key, NetworkMode mode = NetworkMode::MAINNET);
+    string ImportLegacyPrivateKey(const string& encoded_key, NetworkMode mode = NetworkMode::MAINNET); // Now properly integrated with HD wallet
 
     // PastelID functions
     string MakeNewPastelID(bool makeLegRoast = true);
@@ -58,14 +58,16 @@ public:
     string GetSecret(uint32_t addrIndex, NetworkMode mode = NetworkMode::MAINNET);
     string GetAddressSecret(const string& address, NetworkMode mode = NetworkMode::MAINNET);
 
-    // Transaction functions
+// Transaction functions
     string CreateSendToTransaction(NetworkMode mode,
                                    const vector<pair<string, CAmount>>& sendTo, const string& sendFrom,
-                                   v_utxos& utxosJson, uint32_t nHeight, int nExpiryHeight = 0);
+                                   v_utxos& utxosJson, uint32_t nHeight, int nExpiryHeight = 0,
+                                   const string& walletPassword = "");
 
     // JSON version
     string CreateSendToTransactionJson(NetworkMode mode, const string& sendToJson, const string& sendFrom,
-                                       const string& utxosJson, uint32_t nHeight, int nExpiryHeight = 0);
+                                       const string& utxosJson, uint32_t nHeight, int nExpiryHeight = 0,
+                                       const string& walletPassword = "");
 
     string CreateRegisterPastelIdTransaction(NetworkMode mode,
                                              const string& pastelID, const string& fundingAddress,

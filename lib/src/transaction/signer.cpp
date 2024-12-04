@@ -5,106 +5,139 @@
 #include <vector>
 
 #include "transaction/signer.h"
+#include "standard.h"
+#include <stdexcept>
 
 using namespace std;
 
-bool Signer::CreateSig(v_uint8& vchSig, const CKeyID& keyId, const CScript& scriptCode, const TransactionData& txData)
-{
-    auto key = m_hdWallet._getDerivedKey(keyId);
-    if (!key.has_value())
-    {
-        key = m_hdWallet._getLegacyKey(keyId);
-        if (!key.has_value())
-            return false;
-    }
 
-    uint256 hash;
-    try {
-        hash = SignatureHash(scriptCode, txData.tx, txData.index, txData.nHashType, txData.amount);
-    } catch (logic_error ex) {
+bool Signer::CreateSig(v_uint8& vchSig, const CKeyID& keyId, 
+                       const CScript& scriptCode, const TransactionData& txData) {
+    printf("CreateSig for keyID: %s\n", keyId.ToString().c_str());
+    
+    // Retrieve the key directly
+    auto key = m_hdWallet.getKeyForAddress(keyId, "");
+    if (!key.has_value() || !key->IsValid()) {
+        printf("Failed to get valid key\n");
         return false;
     }
 
-    if (!key.value().Sign(hash, vchSig))
+    uint256 hash = SignatureHash(scriptCode, txData.tx, txData.index, 
+                                txData.nHashType, txData.amount);
+                                
+    if (!key->Sign(hash, vchSig)) {
+        printf("Signing failed\n");
         return false;
-    vchSig.push_back(txData.nHashType);
+    }
+    
+    vchSig.push_back(static_cast<unsigned char>(txData.nHashType));
     return true;
 }
 
-bool Signer::Sign1(const CKeyID& address, const CScript& scriptCode, vector<v_uint8>& retSignature, const TransactionData& txData)
-{
+
+bool Signer::Sign1(const CKeyID& address, const CScript& scriptCode, 
+                  vector<v_uint8>& retSignature, const TransactionData& txData) {
+    printf("Sign1 called for address: %s\n", address.ToString().c_str());
     v_uint8 vchSig;
-    if (!CreateSig(vchSig, address, scriptCode, txData))
+    if (!CreateSig(vchSig, address, scriptCode, txData)) {
+        printf("CreateSig failed\n");
         return false;
+    }
+    printf("CreateSig succeeded\n");
     retSignature.push_back(vchSig);
     return true;
 }
 
-bool Signer::SignN(const vector<v_uint8>& multisigdata, const CScript& scriptCode, vector<v_uint8>& retSignature, const TransactionData& txData)
-{
+bool Signer::SignN(const vector<v_uint8>& multisigdata, const CScript& scriptCode, 
+                  vector<v_uint8>& retSignature, const TransactionData& txData) {
+    printf("SignN called for multisig data\n");
     int nSigned = 0;
     int nRequired = multisigdata.front()[0];
-    for (unsigned int i = 1; i < multisigdata.size()-1 && nSigned < nRequired; i++)
-    {
+    printf("Required signatures: %d\n", nRequired);
+
+    for (unsigned int i = 1; i < multisigdata.size()-1 && nSigned < nRequired; i++) {
         const v_uint8& pubkey = multisigdata[i];
         CKeyID keyID = CPubKey(pubkey).GetID();
-        if (Sign1(keyID, scriptCode, retSignature, txData))
+        printf("Attempting to sign with key %s\n", keyID.ToString().c_str());
+        
+        if (Sign1(keyID, scriptCode, retSignature, txData)) {
+            printf("Successfully signed with key %s\n", keyID.ToString().c_str());
             ++nSigned;
+        } else {
+            printf("Failed to sign with key %s\n", keyID.ToString().c_str());
+        }
     }
+    
+    printf("Signed %d out of %d required signatures\n", nSigned, nRequired);
     return nSigned==nRequired;
 }
 
-bool Signer::SignStep(const CScript& scriptPubKey, vector<v_uint8>& ret, const TransactionData& txData)
-{
+CTxDestination Signer::ExtractDestination(const CScript& scriptPubKey) {
+    CTxDestination dest;
+    if (!::ExtractDestination(scriptPubKey, dest)) {
+        printf("Failed to extract destination from scriptPubKey\n");
+        throw std::runtime_error("Failed to extract destination");
+    }
+    return dest;
+}
+
+// signer.cpp
+
+bool Signer::SignStep(const CScript& scriptPubKey, vector<v_uint8>& ret,
+                      const TransactionData& txData) {
     CScript scriptRet;
     uint160 h160;
     ret.clear();
 
     txnouttype whichTypeRet;
     vector<v_uint8> vSolutions;
-    // get public keys or their hashes from scriptPubKey
-    if (!Solver(scriptPubKey, whichTypeRet, vSolutions))
+    if (!Solver(scriptPubKey, whichTypeRet, vSolutions)) {
+        printf("Script solver failed\n");
         return false;
+    }
+    printf("Script type: %d\n", whichTypeRet);
 
-    CKeyID keyID;
-    switch (whichTypeRet)
-    {
-        case TX_NONSTANDARD:
-        case TX_NULL_DATA:
-        case TX_SCRIPTHASH:
-            // light wallet doesn't support pay-to-script
-            return false;
+    switch (whichTypeRet) {
         case TX_PUBKEY:
-            // scriptSig is just `<signature>`
-            keyID = CPubKey(vSolutions[0]).GetID(); // get keyID from pub key
-            return Sign1(keyID, scriptPubKey, ret, txData);
+            printf("Processing TX_PUBKEY\n");
+            {
+                CKeyID keyID = CPubKey(vSolutions[0]).GetID();
+                return Sign1(keyID, scriptPubKey, ret, txData);
+            }
+
         case TX_PUBKEYHASH:
-        {
-            // scriptSig is `<signature> <pubKey>`
-            keyID = CKeyID(uint160(vSolutions[0])); // get keyID from pub key hash
-            if (!Sign1(keyID, scriptPubKey, ret, txData))
-                return false;
-            auto pubKey = m_hdWallet._getPubKey(keyID);    // Find PubKey by keyID
-            if (pubKey.has_value()) {
-                ret.push_back(ToByteVector(pubKey.value()));
+            printf("Processing TX_PUBKEYHASH\n");
+            {
+                CKeyID keyID = CKeyID(uint160(vSolutions[0]));
+                if (!Sign1(keyID, scriptPubKey, ret, txData))
+                    return false;
+                    
+                auto key = m_hdWallet.getKeyForAddress(keyID, "");
+                if (!key.has_value() || !key->IsValid()) {
+                    printf("No key found for keyID after signing\n");
+                    return false;
+                }
+                
+                // Push the public key into the signature script
+                ret.push_back(ToByteVector(key->GetPubKey()));
                 return true;
             }
-            return false;
-        }
+
         case TX_MULTISIG:
-            // scriptSig is `OP_0 <signature1> <signature2> ... <signatureM>`
-            ret.emplace_back(); // work around CHECKMULTISIG bug
+            printf("Processing TX_MULTISIG\n");
+            ret.push_back(v_uint8()); // workaround CHECKMULTISIG bug
             return (SignN(vSolutions, scriptPubKey, ret, txData));
+
         default:
+            printf("Unsupported transaction type: %d\n", whichTypeRet);
             return false;
     }
 }
 
-CScript Signer::MakeScriptSig(const vector<v_uint8>& values)
-{
+
+CScript Signer::MakeScriptSig(const vector<v_uint8>& values) {
     CScript result;
-    for (const auto &v : values)
-    {
+    for (const auto &v : values) {
         if (v.empty())
             result << OP_0;
         else if (v.size() == 1 && v[0] >= 1 && v[0] <= 16)
@@ -116,17 +149,16 @@ CScript Signer::MakeScriptSig(const vector<v_uint8>& values)
 }
 
 bool Signer::ProduceSignature(const CScript& fromPubKey, CMutableTransaction& txToIn,
-                              unsigned int nIn, CAmount amountIn, const uint8_t nHashTypeIn)
-{
-    vector<v_uint8> result;
-    if (SignStep(fromPubKey, result, {nIn, amountIn, nHashTypeIn, txToIn})){
-        auto scriptSig = MakeScriptSig(result);
-        // Test solution
-        MutableTransactionSignatureChecker checker(txToIn, nIn, amountIn);
-        if (VerifyScript(scriptSig, fromPubKey, STANDARD_SCRIPT_VERIFY_FLAGS, checker)) {
-            txToIn.vin[nIn].scriptSig = scriptSig;
-            return true;
-        }
-    }
-    return false;
+                             unsigned int nIn, CAmount amountIn, uint8_t nHashTypeIn) {
+    TransactionData txData = { nIn, amountIn, nHashTypeIn, txToIn };
+    
+    vector<v_uint8> sig;
+    if (!SignStep(fromPubKey, sig, txData))
+        return false;
+
+    txToIn.vin[nIn].scriptSig = MakeScriptSig(sig);
+
+    return VerifyScript(txToIn.vin[nIn].scriptSig, fromPubKey, 
+                       STANDARD_SCRIPT_VERIFY_FLAGS,
+                       MutableTransactionSignatureChecker(txToIn, nIn, amountIn));
 }
