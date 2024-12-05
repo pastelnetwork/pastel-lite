@@ -10,6 +10,7 @@
 #include "utiltime.h"
 #include "base58.h"
 #include "pubkey.h"
+#include "utils.h" 
 #include "key.h"
 #include "crypto/aes.h"
 #include "crypto/hmac_sha512.h"
@@ -187,22 +188,44 @@ void CHDWallet::Unlock(const SecureString &strPassphrase) {
 // Address-specific functions
 [[nodiscard]] string CHDWallet::MakeNewAddress(NetworkMode mode) {
     uint32_t addrIndex = getNextHDIndex();
+    printf("Making new HD address with index: %u\n", addrIndex);
     
     // Ensure this is marked as an HD address
     m_indexIsLegacy[addrIndex] = false;
     
     auto key = _getDerivedKeyAt(addrIndex);
     if (!key.has_value()) {
+        printf("ERROR: Failed to derive key for new address\n");
         throw runtime_error("Failed to derive key");
+    }
+    
+    if (!key->IsValid()) {
+        printf("ERROR: Derived invalid key for new address\n");
+        throw runtime_error("Derived invalid key");
     }
 
     const auto pubKey = key->GetPubKey();
+    if (!key->VerifyPubKey(pubKey)) {
+        printf("ERROR: Failed to verify public key for new address\n");
+        throw runtime_error("Failed to verify public key");
+    }
+    
     const auto keyID = pubKey.GetID();
     
+    // Verify we can retrieve the key before saving
+    auto verifyKey = _getDerivedKeyAt(addrIndex);
+    if (!verifyKey.has_value() || !verifyKey->IsValid()) {
+        printf("ERROR: Failed to verify key retrieval for new address\n");
+        throw runtime_error("Key verification failed");
+    }
+    
+    printf("Adding HD address to index maps\n");
     m_keyIdIndexMap[keyID] = addrIndex;
     m_indexKeyIdMap[addrIndex] = keyID;
     
-    return encodeAddress(keyID, mode);
+    auto address = encodeAddress(keyID, mode);
+    printf("Successfully created new HD address: %s\n", address.c_str());
+    return address;
 }
 
 [[nodiscard]] string CHDWallet::GetAddress(uint32_t addrIndex, NetworkMode mode) {
@@ -326,14 +349,17 @@ std::optional<CKey> CHDWallet::getKeyFromLegacyOrHD(const CKeyID& keyID) {
 }
 
 [[nodiscard]] std::optional<CKey> CHDWallet::_getDerivedKeyAt(uint32_t addrIndex) {
+    printf("_getDerivedKeyAt called for index: %u\n", addrIndex);
+    
     if (IsLocked()) {
+        printf("ERROR: Wallet is locked\n");
         throw runtime_error("Wallet is locked");
     }
 
     // First check if this is a legacy key index
     if (m_indexIsLegacy.contains(addrIndex) && m_indexIsLegacy[addrIndex]) {
         printf("Index %u is marked as legacy - searching in legacy map\n", addrIndex);
-        // Need to find the corresponding legacy key
+        // This part works - don't modify legacy key handling
         for (const auto& [addr, serialKey] : m_addressMapLegacy) {
             CKey key = serialKey.GetKey();
             if (!key.IsValid()) continue;
@@ -347,11 +373,20 @@ std::optional<CKey> CHDWallet::getKeyFromLegacyOrHD(const CKeyID& keyID) {
         return std::nullopt;
     }
 
-    // Only do HD derivation for non-legacy keys
+    // Handle HD derivation
+    printf("Performing HD key derivation for index %u\n", addrIndex);
     auto extKey = getExtKey(addrIndex);
     if (!extKey.has_value()) {
+        printf("ERROR: Failed to get extended key for index %u\n", addrIndex);
         return std::nullopt;
     }
+    
+    if (!extKey.value().key.IsValid()) {
+        printf("ERROR: Derived invalid key for index %u\n", addrIndex);
+        return std::nullopt;
+    }
+    
+    printf("Successfully derived valid key for index %u\n", addrIndex);
     return extKey.value().key;
 }
 
@@ -401,24 +436,34 @@ bool CHDWallet::initializeUnifiedAddressInfo(const CKeyID& keyID, const string& 
 }
 
 optional<CKey> CHDWallet::getKeyForAddress(const CKeyID& keyID, const string& address) {
-    printf("getKeyForAddress called with keyID: %s and address: %s\n", keyID.ToString().c_str(), address.c_str());
+    printf("getKeyForAddress called with keyID: %s and address: %s\n", 
+           keyID.ToString().c_str(), address.c_str());
 
-    // First check unified map even if no address provided
+    // First check unified map
     auto unifiedIt = m_unifiedAddressMap.find(keyID);
     if (unifiedIt != m_unifiedAddressMap.end()) {
         printf("Found key in unified address map\n");
         return unifiedIt->second.key;
     }
 
-    // Always check legacy map regardless of address
+    // Try deriving key from HD if it exists in index map
+    if (m_keyIdIndexMap.contains(keyID)) {
+        const uint32_t index = m_keyIdIndexMap[keyID];
+        if (!m_indexIsLegacy[index]) {
+            printf("Attempting HD derivation for index %u\n", index);
+            return _getDerivedKeyAt(index);
+        }
+    }
+
+    // Check legacy map
     for (const auto& [addr, serialKey] : m_addressMapLegacy) {
         CKey key = serialKey.GetKey();
         if (!key.IsValid()) {
-            printf("Warning: Found invalid key in legacy map for address: %s\n", addr.c_str());
+            printf("Warning: Found invalid key in legacy map\n");
             continue;
         }
         if (key.GetPubKey().GetID() == keyID) {
-            printf("Found key in legacy map for address: %s\n", addr.c_str());
+            printf("Found key in legacy map\n");
             return key;
         }
     }
@@ -513,19 +558,34 @@ bool CHDWallet::validateKeyAccess(const CKeyID& keyID, const string& address) {
 }
 
 [[nodiscard]] optional<CExtKey> CHDWallet::getExtKey(uint32_t addrIndex) {
+    printf("getExtKey called for index: %u\n", addrIndex);
+    
     if (IsLocked()) {
+        printf("ERROR: Wallet is locked in getExtKey\n");
         throw runtime_error("Wallet is locked");
     }
 
     auto accountKey = getAccountKey();
     if (!accountKey.has_value()) {
+        printf("ERROR: Failed to get account key\n");
         throw runtime_error("Failed to get account key");
     }
+    
+    printf("Successfully got account key, deriving child key\n");
     auto extKey = accountKey.value().Derive(addrIndex);
     accountKey.value().Clear();
+    
     if (!extKey.has_value()) {
+        printf("ERROR: Failed to derive child key for index %u\n", addrIndex);
         throw runtime_error("Failed to get new address");
     }
+    
+    if (!extKey.value().key.IsValid()) {
+        printf("ERROR: Derived invalid extended key\n");
+        return std::nullopt;
+    }
+    
+    printf("Successfully derived valid extended key\n");
     return extKey;
 }
 
@@ -683,7 +743,10 @@ string CHDWallet::GetPastelID(const string &pastelID, PastelIDType type) {
                 auto seed = makePastelIDSeed(pastelIDIndex, PastelIDType::PASTELID);
                 printf("Successfully generated seed for ed448_sign\n");
                 auto signature = ed448_sign(std::move(seed), message, fBase64 ? encoding::base64 : encoding::none);
-                printf("Successfully created signature: %s\n", signature.c_str());
+                printf("Successfully created signature of length: %zu\n", signature.length());
+                if (!signature.empty()) {
+                    printf("Signature hex: %s\n", HexStr(signature).c_str());
+                }
                 return signature;
             } catch (const exception& e) {
                 printf("ERROR in ed448_sign: %s\n", e.what());
@@ -696,7 +759,11 @@ string CHDWallet::GetPastelID(const string &pastelID, PastelIDType type) {
                 auto seed = makePastelIDSeed(pastelIDIndex, PastelIDType::LEGROAST);
                 printf("Successfully generated seed for legroast_sign\n");
                 auto signature = legroast_sign(std::move(seed), message, fBase64 ? encoding::base64 : encoding::none);
-                printf("Successfully created signature: %s\n", signature.c_str());
+                // Instead of directly printing binary data, print the hex representation
+                printf("Successfully created signature of length: %zu\n", signature.length());
+                if (!signature.empty()) {
+                    printf("Signature hex: %s\n", HexStr(signature).c_str());
+                }
                 return signature;
             } catch (const exception& e) {
                 printf("ERROR in legroast_sign: %s\n", e.what());
@@ -716,13 +783,13 @@ string CHDWallet::GetPastelID(const string &pastelID, PastelIDType type) {
             if (type == PastelIDType::PASTELID) {
                 printf("Attempting ed448_sign with external PASTELID\n");
                 auto signature = ed448_sign(std::move(key), message, fBase64 ? encoding::base64 : encoding::none);
-                printf("Successfully created signature for external PastelID: %s\n", signature.c_str());
+                printf("Successfully created signature for external PastelID: %s\n", HexStr(signature).c_str());
                 return signature;
             }
             if (type == PastelIDType::LEGROAST) {
                 printf("Attempting legroast_sign with external LEGROAST\n");
                 auto signature = legroast_sign(std::move(key), message, fBase64 ? encoding::base64 : encoding::none);
-                printf("Successfully created signature for external LegRoast: %s\n", signature.c_str());
+                printf("Successfully created signature for external LegRoast: %s\n", HexStr(signature).c_str());
                 return signature;
             }
             printf("ERROR: Invalid PastelID type for external PastelID: %d\n", static_cast<int>(type));

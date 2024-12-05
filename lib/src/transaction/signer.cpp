@@ -10,13 +10,15 @@
 
 using namespace std;
 
-
 bool Signer::CreateSig(v_uint8& vchSig, const CKeyID& keyId, 
                        const CScript& scriptCode, const TransactionData& txData) {
     printf("CreateSig for keyID: %s\n", keyId.ToString().c_str());
     
-    // Retrieve the key directly
-    auto key = m_hdWallet.getKeyForAddress(keyId, "");
+    // Get the address for this keyID
+    auto destAddr = m_hdWallet.encodeAddress(keyId, NetworkMode::MAINNET); // Changed to pass NetworkMode directly
+    
+    // Retrieve the key with the address context
+    auto key = m_hdWallet.getKeyForAddress(keyId, destAddr);
     if (!key.has_value() || !key->IsValid()) {
         printf("Failed to get valid key\n");
         return false;
@@ -33,7 +35,6 @@ bool Signer::CreateSig(v_uint8& vchSig, const CKeyID& keyId,
     vchSig.push_back(static_cast<unsigned char>(txData.nHashType));
     return true;
 }
-
 
 bool Signer::Sign1(const CKeyID& address, const CScript& scriptCode, 
                   vector<v_uint8>& retSignature, const TransactionData& txData) {
