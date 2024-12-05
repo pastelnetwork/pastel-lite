@@ -24,6 +24,19 @@ typedef std::vector<unsigned char> CPrivKey;
 class CKey
 {
 public:
+
+    v_uint8 GetKeyData() const {
+        assert(keydata.size() == KEY_SIZE);
+        return keydata;
+    }
+
+    void SetKeyData(const v_uint8& data, bool fCompressedIn) {
+        assert(data.size() == KEY_SIZE);
+        keydata = data;
+        fCompressed = fCompressedIn;
+        fValid = Check(keydata.data());
+    }
+
     /**
      * secp256k1:
      */
@@ -37,6 +50,8 @@ public:
     static_assert(
         PRIVATE_KEY_SIZE >= COMPRESSED_PRIVATE_KEY_SIZE,
         "COMPRESSED_PRIVATE_KEY_SIZE is larger than PRIVATE_KEY_SIZE");
+
+
 
 private:
     //! Whether this private key is valid. We check for correctness when modifying the key

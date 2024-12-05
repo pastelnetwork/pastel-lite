@@ -4,12 +4,13 @@
 
 #include <sodium.h>
 #include <botan/hash.h>
-
+#include <cstdio> 
 #include "key_io.h"
 #include "hd_wallet.h"
 #include "utiltime.h"
 #include "base58.h"
 #include "pubkey.h"
+#include "utils.h" 
 #include "key.h"
 #include "crypto/aes.h"
 #include "crypto/hmac_sha512.h"
@@ -29,6 +30,7 @@ string CHDWallet::SetupNewWallet(const SecureString &password) {
         return MnemonicSeed::Random(CChainParams().BIP44CoinType(), Language::English);
     });
 }
+
 [[nodiscard]] string CHDWallet::SetupNewWalletFromMnemonic(const SecureString& password, const SecureString& mnemonic) {
     if (mnemonic.empty()) {
         throw runtime_error("Mnemonic is empty");
@@ -59,6 +61,11 @@ string CHDWallet::setupNewWalletImpl(const SecureString &password, const std::fu
     if (!decSeed.has_value()) {
         throw runtime_error("Failed to get decrypted mnemonic seed");
     }
+    
+    // Initialize state for unified address tracking
+    m_lastHDIndex = 0;
+    m_indexIsLegacy.clear();
+    
     return seed.GetMnemonic();
 }
 
@@ -144,7 +151,6 @@ void CHDWallet::Lock() {
     m_vMasterKey.clear();
 }
 
-
 void CHDWallet::Unlock(const SecureString &strPassphrase) {
     if (strPassphrase.empty())
         throw runtime_error("Passphrase is empty");
@@ -181,48 +187,85 @@ void CHDWallet::Unlock(const SecureString &strPassphrase) {
 
 // Address-specific functions
 [[nodiscard]] string CHDWallet::MakeNewAddress(NetworkMode mode) {
-    auto addrIndex = m_keyIdIndexMap.size();
-    if (m_indexKeyIdMap.contains(addrIndex)) {
-        return encodeAddress(m_indexKeyIdMap[addrIndex], mode);
-    }
+    uint32_t addrIndex = getNextHDIndex();
+    printf("Making new HD address with index: %u\n", addrIndex);
+    
+    // Ensure this is marked as an HD address
+    m_indexIsLegacy[addrIndex] = false;
+    
     auto key = _getDerivedKeyAt(addrIndex);
+    if (!key.has_value()) {
+        printf("ERROR: Failed to derive key for new address\n");
+        throw runtime_error("Failed to derive key");
+    }
+    
+    if (!key->IsValid()) {
+        printf("ERROR: Derived invalid key for new address\n");
+        throw runtime_error("Derived invalid key");
+    }
 
-    // Get and encode public key
     const auto pubKey = key->GetPubKey();
+    if (!key->VerifyPubKey(pubKey)) {
+        printf("ERROR: Failed to verify public key for new address\n");
+        throw runtime_error("Failed to verify public key");
+    }
+    
     const auto keyID = pubKey.GetID();
-
+    
+    // Verify we can retrieve the key before saving
+    auto verifyKey = _getDerivedKeyAt(addrIndex);
+    if (!verifyKey.has_value() || !verifyKey->IsValid()) {
+        printf("ERROR: Failed to verify key retrieval for new address\n");
+        throw runtime_error("Key verification failed");
+    }
+    
+    printf("Adding HD address to index maps\n");
     m_keyIdIndexMap[keyID] = addrIndex;
     m_indexKeyIdMap[addrIndex] = keyID;
-
-    return encodeAddress(keyID, mode);
+    
+    auto address = encodeAddress(keyID, mode);
+    printf("Successfully created new HD address: %s\n", address.c_str());
+    return address;
 }
 
 [[nodiscard]] string CHDWallet::GetAddress(uint32_t addrIndex, NetworkMode mode) {
-    if (m_indexKeyIdMap.contains(addrIndex)) {
-        return encodeAddress(m_indexKeyIdMap[addrIndex], mode);
+    if (!m_indexKeyIdMap.contains(addrIndex)) {
+        throw runtime_error("Address index not found");
     }
-    throw runtime_error("Address not found");
+    return encodeAddress(m_indexKeyIdMap[addrIndex], mode);
 }
 
 [[nodiscard]] uint32_t CHDWallet::GetAddressesCount() {
-    return m_keyIdIndexMap.size();
+    return m_indexKeyIdMap.size();  // This now includes both HD and legacy
 }
 
 [[nodiscard]] vector<string> CHDWallet::GetAddresses(NetworkMode mode) {
+    printf("Getting addresses for mode: %d\n", static_cast<int>(mode));
     vector<string> addresses;
-    addresses.reserve(m_keyIdIndexMap.size());
-    for (const auto& key : m_keyIdIndexMap | views::keys) {
-        addresses.push_back(encodeAddress(key, mode));
+    addresses.reserve(m_indexKeyIdMap.size());
+    
+    // Process all addresses in index order
+    for (const auto& [index, keyID] : m_indexKeyIdMap) {
+        auto address = encodeAddress(keyID, mode);
+        printf("Adding address: %s (index: %u, legacy: %s)\n", 
+               address.c_str(), 
+               index, 
+               m_indexIsLegacy.contains(index) ? "yes" : "no");
+        addresses.push_back(address);
     }
-    for (const auto& key : m_addressMapLegacy | views::keys) {
-        addresses.push_back(key);
-    }
+    
+    printf("Total addresses found: %zu\n", addresses.size());
     return addresses;
 }
 
 [[nodiscard]] string CHDWallet::MakeNewLegacyAddress(NetworkMode mode) {
     CKey secret;
     secret.MakeNewKey(true);
+
+    // Verify key validity
+    if (!secret.IsValid()) {
+        throw runtime_error("Failed to generate valid key");
+    }
 
     const CPubKey newKey = secret.GetPubKey();
     if (!secret.VerifyPubKey(newKey)) {
@@ -232,7 +275,10 @@ void CHDWallet::Unlock(const SecureString &strPassphrase) {
     // Get and encode public key
     const CKeyID keyID = newKey.GetID();
     auto strAddress = encodeAddress(keyID, mode);
-    m_addressMapLegacy[strAddress] = secret;
+    
+    // Add to unified tracking system with verified key
+    addImportedKeyToMaps(secret, strAddress);
+    
     return strAddress;
 }
 
@@ -249,11 +295,353 @@ void CHDWallet::Unlock(const SecureString &strPassphrase) {
         throw runtime_error("Failed to verify public key");
     }
 
+    printf("Importing key for mode %d\n", static_cast<int>(mode));
+
     // Get and encode public key
     const CKeyID keyID = newKey.GetID();
+    
+    // Check if key already exists in HD wallet
+    if (m_keyIdIndexMap.contains(keyID)) {
+        printf("Key already exists in wallet\n");
+        return encodeAddress(keyID, mode);
+    }
+
     auto strAddress = encodeAddress(keyID, mode);
-    m_addressMapLegacy[strAddress] = secret;
+    printf("Generated address: %s\n", strAddress.c_str());
+    
+    // Add to unified tracking system
+    addImportedKeyToMaps(secret, strAddress);
+    
     return strAddress;
+}
+
+// Key management and derivation functions
+
+std::optional<CKey> CHDWallet::getKeyFromLegacyOrHD(const CKeyID& keyID) {
+    // First check legacy addresses
+    for (const auto& [addr, serialKey] : m_addressMapLegacy) {
+        CKey key = serialKey.GetKey();
+        if (!key.IsValid()) {
+            printf("Warning: Found invalid key in legacy map\n");
+            continue;
+        }
+        if (key.GetPubKey().GetID() == keyID) {
+            printf("Found key in legacy map\n");
+            return key;
+        }
+    }
+    
+    // If not found in legacy, try HD derivation
+    if (m_keyIdIndexMap.contains(keyID)) {
+        const uint32_t index = m_keyIdIndexMap[keyID];
+        // Skip HD derivation if this is a legacy key
+        if (m_indexIsLegacy.contains(index) && m_indexIsLegacy[index]) {
+            printf("ERROR: Legacy key not found in address map but marked as legacy\n");
+            return std::nullopt;
+        }
+        // Only try HD derivation for non-legacy keys
+        printf("Attempting HD key derivation for index %u\n", index);
+        return _getDerivedKeyAt(index);
+    }
+
+    printf("Failed to find key for keyID\n");
+    return std::nullopt;
+}
+
+[[nodiscard]] std::optional<CKey> CHDWallet::_getDerivedKeyAt(uint32_t addrIndex) {
+    printf("_getDerivedKeyAt called for index: %u\n", addrIndex);
+    
+    if (IsLocked()) {
+        printf("ERROR: Wallet is locked\n");
+        throw runtime_error("Wallet is locked");
+    }
+
+    // First check if this is a legacy key index
+    if (m_indexIsLegacy.contains(addrIndex) && m_indexIsLegacy[addrIndex]) {
+        printf("Index %u is marked as legacy - searching in legacy map\n", addrIndex);
+        // This part works - don't modify legacy key handling
+        for (const auto& [addr, serialKey] : m_addressMapLegacy) {
+            CKey key = serialKey.GetKey();
+            if (!key.IsValid()) continue;
+            const auto keyID = key.GetPubKey().GetID();
+            if (m_keyIdIndexMap.contains(keyID) && m_keyIdIndexMap[keyID] == addrIndex) {
+                printf("Found legacy key for index %u\n", addrIndex);
+                return key;
+            }
+        }
+        printf("ERROR: No legacy key found for index %u\n", addrIndex);
+        return std::nullopt;
+    }
+
+    // Handle HD derivation
+    printf("Performing HD key derivation for index %u\n", addrIndex);
+    auto extKey = getExtKey(addrIndex);
+    if (!extKey.has_value()) {
+        printf("ERROR: Failed to get extended key for index %u\n", addrIndex);
+        return std::nullopt;
+    }
+    
+    if (!extKey.value().key.IsValid()) {
+        printf("ERROR: Derived invalid key for index %u\n", addrIndex);
+        return std::nullopt;
+    }
+    
+    printf("Successfully derived valid key for index %u\n", addrIndex);
+    return extKey.value().key;
+}
+
+bool CHDWallet::initializeUnifiedAddressInfo(const CKeyID& keyID, const string& address) {
+    printf("Initializing unified address info for: %s\n", address.c_str());
+    
+    // Look for key in legacy addresses first
+    for (const auto& [addr, serialKey] : m_addressMapLegacy) {
+        CKey key = serialKey.GetKey();
+        if (!key.IsValid()) continue;
+        
+        if (key.GetPubKey().GetID() == keyID) {
+            // Found in legacy map
+            const auto it = m_keyIdIndexMap.find(keyID);
+            if (it == m_keyIdIndexMap.end()) {
+                printf("Error: Legacy key found but no index mapping\n");
+                return false;
+            }
+            
+            m_unifiedAddressMap[keyID] = {
+                it->second,
+                true,
+                key
+            };
+            return true;
+        }
+    }
+
+    // Try HD derivation if not found in legacy
+    if (m_keyIdIndexMap.contains(keyID)) {
+        const uint32_t index = m_keyIdIndexMap[keyID];
+        if (!m_indexIsLegacy[index]) {
+            auto derivedKey = _getDerivedKeyAt(index);
+            if (derivedKey.has_value()) {
+                m_unifiedAddressMap[keyID] = {
+                    index,
+                    false,
+                    derivedKey.value()
+                };
+                return true;
+            }
+        }
+    }
+
+    printf("Failed to initialize unified address info\n");
+    return false;
+}
+
+optional<CKey> CHDWallet::getKeyForAddress(const CKeyID& keyID, const string& address) {
+    printf("getKeyForAddress called with keyID: %s and address: %s\n", 
+           keyID.ToString().c_str(), address.c_str());
+
+    // First check unified map
+    auto unifiedIt = m_unifiedAddressMap.find(keyID);
+    if (unifiedIt != m_unifiedAddressMap.end()) {
+        printf("Found key in unified address map\n");
+        return unifiedIt->second.key;
+    }
+
+    // Try deriving key from HD if it exists in index map
+    if (m_keyIdIndexMap.contains(keyID)) {
+        const uint32_t index = m_keyIdIndexMap[keyID];
+        if (!m_indexIsLegacy[index]) {
+            printf("Attempting HD derivation for index %u\n", index);
+            return _getDerivedKeyAt(index);
+        }
+    }
+
+    // Check legacy map
+    for (const auto& [addr, serialKey] : m_addressMapLegacy) {
+        CKey key = serialKey.GetKey();
+        if (!key.IsValid()) {
+            printf("Warning: Found invalid key in legacy map\n");
+            continue;
+        }
+        if (key.GetPubKey().GetID() == keyID) {
+            printf("Found key in legacy map\n");
+            return key;
+        }
+    }
+
+    // Only try initialize if we have an address
+    if (!address.empty()) {
+        printf("Address provided, attempting to initialize unified address info\n");
+        if (initializeUnifiedAddressInfo(keyID, address)) {
+            unifiedIt = m_unifiedAddressMap.find(keyID);
+            if (unifiedIt != m_unifiedAddressMap.end()) {
+                printf("Successfully initialized and retrieved unified key\n"); 
+                return unifiedIt->second.key;
+            }
+        }
+    }
+
+    printf("No key found for keyID: %s\n", keyID.ToString().c_str());
+    return std::nullopt;
+}
+
+bool CHDWallet::validateKeyAccess(const CKeyID& keyID, const string& address) {
+    auto key = getKeyForAddress(keyID, address);
+    if (!key.has_value() || !key->IsValid()) {
+        return false;
+    }
+    
+    // Verify the key matches the address
+    CPubKey pubKey = key->GetPubKey();
+    return pubKey.GetID() == keyID;
+}
+
+[[nodiscard]] std::optional<CKey> CHDWallet::_getDerivedKey(const CKeyID& keyID) {
+    printf("Getting key for keyID: %s\n", keyID.ToString().c_str());
+    
+    // First check if this key corresponds to a legacy imported address
+    for (const auto& [addr, serialKey] : m_addressMapLegacy) {
+        CKey key = serialKey.GetKey();
+        if (!key.IsValid()) {
+            printf("Warning: Found invalid key in legacy map\n");
+            continue;
+        }
+        if (key.GetPubKey().GetID() == keyID) {
+            printf("Successfully retrieved legacy key from address map\n");
+            return key;
+        }
+    }
+    
+    // If no legacy key found and we have an index, try HD derivation
+    if (m_keyIdIndexMap.contains(keyID)) {
+        const uint32_t index = m_keyIdIndexMap[keyID];
+        // Skip HD derivation if this is a legacy key
+        if (m_indexIsLegacy.contains(index) && m_indexIsLegacy[index]) {
+            printf("ERROR: Legacy key not found in address map but marked as legacy\n");
+            return std::nullopt;
+        }
+        // Only try HD derivation for non-legacy keys
+        printf("Attempting HD key derivation for index %u\n", index);
+        return _getDerivedKeyAt(index);
+    }
+
+    printf("Failed to find key for keyID\n");
+    return std::nullopt;
+}
+
+[[nodiscard]] optional<CPubKey> CHDWallet::_getPubKey(const CKeyID& keyID) {
+    if (m_keyIdIndexMap.contains(keyID)) {
+        auto key = _getDerivedKey(keyID);
+        if (key.has_value() && key->IsValid()) {
+            auto pubKey = key->GetPubKey();
+            printf("Retrieved derived pubKey for keyID: %s\n", keyID.ToString().c_str());
+            return pubKey;
+        }
+    }
+
+    // Check legacy keys if not found in HD
+    for (const auto& [address, serialKey] : m_addressMapLegacy) {
+        CKey key = serialKey.GetKey();
+        if (!key.IsValid()) {
+            printf("Warning: Invalid legacy key found for address %s\n", address.c_str());
+            continue;
+        }
+        if (key.GetPubKey().GetID() == keyID) {
+            auto pubKey = key.GetPubKey();
+            printf("Retrieved legacy pubKey for keyID: %s from address: %s\n", 
+                   keyID.ToString().c_str(), address.c_str());
+            return pubKey;
+        }
+    }
+
+    printf("Failed to retrieve pubKey for keyID: %s\n", keyID.ToString().c_str());
+    return nullopt;
+}
+
+[[nodiscard]] optional<CExtKey> CHDWallet::getExtKey(uint32_t addrIndex) {
+    printf("getExtKey called for index: %u\n", addrIndex);
+    
+    if (IsLocked()) {
+        printf("ERROR: Wallet is locked in getExtKey\n");
+        throw runtime_error("Wallet is locked");
+    }
+
+    auto accountKey = getAccountKey();
+    if (!accountKey.has_value()) {
+        printf("ERROR: Failed to get account key\n");
+        throw runtime_error("Failed to get account key");
+    }
+    
+    printf("Successfully got account key, deriving child key\n");
+    auto extKey = accountKey.value().Derive(addrIndex);
+    accountKey.value().Clear();
+    
+    if (!extKey.has_value()) {
+        printf("ERROR: Failed to derive child key for index %u\n", addrIndex);
+        throw runtime_error("Failed to get new address");
+    }
+    
+    if (!extKey.value().key.IsValid()) {
+        printf("ERROR: Derived invalid extended key\n");
+        return std::nullopt;
+    }
+    
+    printf("Successfully derived valid extended key\n");
+    return extKey;
+}
+
+[[nodiscard]] optional<AccountKey> CHDWallet::getAccountKey() noexcept {
+    auto seed = getDecryptedMnemonicSeed();
+    if (!seed.has_value()) {
+        return nullopt;
+    }
+    return AccountKey::MakeAccount(seed.value(), m_bip44CoinType, 0);
+}
+
+[[nodiscard]] const v_uint8& CHDWallet::getNetworkPrefix(NetworkMode mode, CChainParams::Base58Type type) {
+    switch (mode) {
+        case NetworkMode::MAINNET:
+            return m_mainnetParams.Base58Prefix(type);
+        case NetworkMode::TESTNET:
+            return m_testnetParams.Base58Prefix(type);
+        case NetworkMode::DEVNET:
+            return m_devnetParams.Base58Prefix(type);
+        default:
+            throw runtime_error("Invalid network mode");
+    }
+}
+
+string CHDWallet::encodeAddress(const CKeyID &id, NetworkMode mode) noexcept {
+    v_uint8 pubKey = getNetworkPrefix(mode, CChainParams::Base58Type::PUBKEY_ADDRESS);
+    pubKey.insert(pubKey.end(), id.begin(), id.end());
+    return EncodeBase58Check(pubKey);
+}
+
+optional<CKeyID> CHDWallet::decodeAddress(const string& address, NetworkMode mode) noexcept {
+    KeyIO keyIO(GetChainParams(mode));
+    if (auto destination = keyIO.DecodeDestination(address); IsKeyDestination(destination)){
+        return std::get<CKeyID>(destination);
+    }
+    return nullopt;
+}
+
+string CHDWallet::encodeExtPubKey(const CExtPubKey &key, NetworkMode mode) noexcept {
+    v_uint8 data = getNetworkPrefix(mode, CChainParams::Base58Type::EXT_PUBLIC_KEY);
+    const size_t size = data.size();
+    data.resize(size + BIP32_EXTKEY_SIZE);
+    key.Encode(data.data() + size);
+    string ret = EncodeBase58Check(data);
+    return ret;
+}
+
+CExtPubKey CHDWallet::decodeExtPubKey(const string &str, NetworkMode mode) noexcept {
+    CExtPubKey key;
+    v_uint8 data;
+    if (DecodeBase58Check(str, data)) {
+        const auto &prefix = getNetworkPrefix(mode, CChainParams::Base58Type::EXT_PUBLIC_KEY);
+        if (data.size() == BIP32_EXTKEY_SIZE + prefix.size() && equal(prefix.begin(), prefix.end(), data.begin()))
+            key.Decode(data.data() + prefix.size());
+    }
+    return key;
 }
 
 // PastelID specific functions
@@ -313,87 +701,120 @@ string CHDWallet::GetPastelID(const string &pastelID, PastelIDType type) {
 }
 
 [[nodiscard]] vector<string> CHDWallet::GetPastelIDs() {
+    printf("Getting all PastelIDs...\n");
     vector<string> pastelIDs;
     pastelIDs.reserve(m_pastelIDIndexMap.size() + m_externalPastelIDs.size());
-    for (const auto& key : m_pastelIDIndexMap | views::keys) {
-        pastelIDs.push_back(key);
+    
+    // Internal PastelIDs
+    printf("Adding internal PastelIDs...\n");
+    for (const auto& [id, _] : m_pastelIDIndexMap) {
+        printf("Adding internal PastelID: %s\n", id.c_str());
+        pastelIDs.push_back(id);
     }
-    for (const auto& key : m_externalPastelIDs | views::keys) {
-        pastelIDs.push_back(key);
+    
+    // External PastelIDs
+    printf("Adding external PastelIDs...\n");
+    for (const auto& [id, _] : m_externalPastelIDs) {
+        printf("Adding external PastelID: %s\n", id.c_str());
+        pastelIDs.push_back(id);
     }
+    
+    printf("Total PastelIDs found: %zu\n", pastelIDs.size());
     return pastelIDs;
 }
 
-[[nodiscard]] string CHDWallet::SignWithPastelID(const string& pastelID, const string& message, PastelIDType type, bool fBase64){
-    if (m_pastelIDIndexMap.contains(pastelID))
-    {
+[[nodiscard]] string CHDWallet::SignWithPastelID(const string& pastelID, const string& message, PastelIDType type, bool fBase64) {
+    printf("SignWithPastelID called with pastelID: %s, type: %d, fBase64: %d\n", 
+           pastelID.c_str(), static_cast<int>(type), fBase64);
+    
+    if (IsLocked()) {
+        printf("ERROR: Wallet is locked, cannot sign\n");
+        throw runtime_error("Wallet is locked");
+    }
+
+    if (m_pastelIDIndexMap.contains(pastelID)) {
+        printf("Found pastelID in m_pastelIDIndexMap\n");
         const auto pastelIDIndex = m_pastelIDIndexMap[pastelID];
+        printf("PastelID index: %u\n", pastelIDIndex);
+        
         if (type == PastelIDType::PASTELID) {
-            return ed448_sign(makePastelIDSeed(pastelIDIndex, PastelIDType::PASTELID), message, fBase64? encoding::base64 : encoding::none);
+            printf("Attempting ed448_sign with PASTELID type\n");
+            try {
+                auto seed = makePastelIDSeed(pastelIDIndex, PastelIDType::PASTELID);
+                printf("Successfully generated seed for ed448_sign\n");
+                auto signature = ed448_sign(std::move(seed), message, fBase64 ? encoding::base64 : encoding::none);
+                printf("Successfully created signature of length: %zu\n", signature.length());
+                if (!signature.empty()) {
+                    printf("Signature hex: %s\n", HexStr(signature).c_str());
+                }
+                return signature;
+            } catch (const exception& e) {
+                printf("ERROR in ed448_sign: %s\n", e.what());
+                throw;
+            }
         }
         if (type == PastelIDType::LEGROAST) {
-            return legroast_sign(makePastelIDSeed(pastelIDIndex, PastelIDType::LEGROAST), message, fBase64? encoding::base64 : encoding::none);
+            printf("Attempting legroast_sign with LEGROAST type\n");
+            try {
+                auto seed = makePastelIDSeed(pastelIDIndex, PastelIDType::LEGROAST);
+                printf("Successfully generated seed for legroast_sign\n");
+                auto signature = legroast_sign(std::move(seed), message, fBase64 ? encoding::base64 : encoding::none);
+                // Instead of directly printing binary data, print the hex representation
+                printf("Successfully created signature of length: %zu\n", signature.length());
+                if (!signature.empty()) {
+                    printf("Signature hex: %s\n", HexStr(signature).c_str());
+                }
+                return signature;
+            } catch (const exception& e) {
+                printf("ERROR in legroast_sign: %s\n", e.what());
+                throw;
+            }
         }
+        printf("ERROR: Invalid PastelID type: %d\n", static_cast<int>(type));
         throw runtime_error("Invalid PastelID type");
     }
+
     if (m_externalPastelIDs.contains(pastelID)) {
-        auto key = _getPastelIDKey(pastelID, type);
-        if (type == PastelIDType::PASTELID) {
-            return ed448_sign(std::move(key), message, fBase64? encoding::base64 : encoding::none);
+        printf("Found pastelID in m_externalPastelIDs\n");
+        try {
+            auto key = _getPastelIDKey(pastelID, type);
+            printf("Successfully retrieved key for external PastelID\n");
+            
+            if (type == PastelIDType::PASTELID) {
+                printf("Attempting ed448_sign with external PASTELID\n");
+                auto signature = ed448_sign(std::move(key), message, fBase64 ? encoding::base64 : encoding::none);
+                printf("Successfully created signature for external PastelID: %s\n", HexStr(signature).c_str());
+                return signature;
+            }
+            if (type == PastelIDType::LEGROAST) {
+                printf("Attempting legroast_sign with external LEGROAST\n");
+                auto signature = legroast_sign(std::move(key), message, fBase64 ? encoding::base64 : encoding::none);
+                printf("Successfully created signature for external LegRoast: %s\n", HexStr(signature).c_str());
+                return signature;
+            }
+            printf("ERROR: Invalid PastelID type for external PastelID: %d\n", static_cast<int>(type));
+            throw runtime_error("Invalid PastelID type");
+        } catch (const exception& e) {
+            printf("ERROR processing external PastelID: %s\n", e.what());
+            throw;
         }
-        if (type == PastelIDType::LEGROAST) {
-            return legroast_sign(std::move(key), message, fBase64? encoding::base64 : encoding::none);
-        }
-        throw runtime_error("Invalid PastelID type");
     }
-    throw runtime_error("PastelID not found");
+
+    printf("ERROR: PastelID not found in either internal or external storage: %s\n", pastelID.c_str());
+    throw runtime_error(fmt::format("PastelID not found: {}", pastelID));
 }
 
-[[nodiscard]] bool CHDWallet::VerifyWithPastelID(const string& pastelID, const string& message, const string& signature, bool fBase64){
-    return ed448_verify(pastelID, message, signature, fBase64? encoding::base64 : encoding::hex);
+[[nodiscard]] bool CHDWallet::VerifyWithPastelID(const string& pastelID, const string& message, 
+                                                const string& signature, bool fBase64) {
+    return ed448_verify(pastelID, message, signature, fBase64 ? encoding::base64 : encoding::hex);
 }
 
-[[nodiscard]] bool CHDWallet::VerifyWithLegRoast(const string& lrPubKey, const string& message, const string& signature, bool fBase64){
-    return legroast_verify(lrPubKey, message, signature, fBase64? encoding::base64 : encoding::hex);
+[[nodiscard]] bool CHDWallet::VerifyWithLegRoast(const string& lrPubKey, const string& message, 
+                                                const string& signature, bool fBase64) {
+    return legroast_verify(lrPubKey, message, signature, fBase64 ? encoding::base64 : encoding::hex);
 }
 
-[[nodiscard]] bool CHDWallet::ImportPastelIDKeys(const string& pastelID, SecureString&& password, const string& pastelIDDir) {
-    const std::filesystem::path dir(pastelIDDir);
-    const std::filesystem::path file(pastelID);
-    const std::filesystem::path full_path = dir / file;
-
-    CSecureContainer cont;
-    cont.read_from_file(full_path.string(), password);
-    auto pk_legroast = cont.extract_secure_data(SECURE_ITEM_TYPE::pkey_legroast);
-    auto pk_ed448 = cont.extract_secure_data(SECURE_ITEM_TYPE::pkey_ed448);
-    string pub_legroast;
-    cont.get_public_data(PUBLIC_ITEM_TYPE::pubkey_legroast, pub_legroast);
-
-    auto fp_legroast = CPastelID::LegRoastFingerprint(pk_legroast);
-    auto fp_ed448 = CPastelID::PastelIDFingerprint(pk_ed448);
-
-    v_uint8 enc_pk_legroast, enc_pk_ed448;
-    encryptWithMasterKey(pk_legroast, fp_legroast, enc_pk_legroast);
-    encryptWithMasterKey(pk_ed448, fp_ed448, enc_pk_ed448);
-
-    m_externalPastelIDs[pastelID] = external_pastel_id{
-        {fp_ed448, enc_pk_ed448},
-        {fp_legroast, enc_pk_legroast},
-        pub_legroast
-    };
-
-    return true;
-}
-
-void CHDWallet::ExportPastelIDKeys(const string& pastelID, SecureString&& passPhrase, const string& sDirPath){
-    auto keyBufPastelID = _getPastelIDKey(pastelID, PastelIDType::PASTELID);
-    auto keyBufLegRoast = _getPastelIDKey(pastelID, PastelIDType::LEGROAST);
-    auto legRoastPubKey = GetPastelID(pastelID, PastelIDType::LEGROAST);
-    CPastelID::CreatePastelKeysFile(sDirPath, std::move(passPhrase),
-                                    pastelID, legRoastPubKey, keyBufPastelID, keyBufLegRoast);
-}
-
-// Account-specific functions
+// Account specific functions
 [[nodiscard]] string CHDWallet::GetWalletPubKey() {
     return GetPubKeyAt(m_walletIDIndex);
 }
@@ -413,12 +834,12 @@ void CHDWallet::ExportPastelIDKeys(const string& pastelID, SecureString&& passPh
 
 [[nodiscard]] string CHDWallet::SignWithKeyAt(uint32_t addrIndex, string message) {
     auto key = _getDerivedKeyAt(addrIndex);
-    if (!key.has_value()) {
-        throw runtime_error("Failed to get account key");
+    if (!key.has_value() || !key->IsValid()) {
+        throw runtime_error("Failed to get valid account key");
     }
 
     uint256 hash;
-    CHash256().Write((unsigned char *) message.data(), message.size()).Finalize(hash.begin());
+    CHash256().Write((unsigned char*)message.data(), message.size()).Finalize(hash.begin());
     v_uint8 vchSig;
     if (key.value().Sign(hash, vchSig)) {
         return EncodeBase58(vchSig);
@@ -427,9 +848,9 @@ void CHDWallet::ExportPastelIDKeys(const string& pastelID, SecureString&& passPh
 }
 
 // Key functions
-[[nodiscard]] string CHDWallet::GetSecret(uint32_t addrIndex, NetworkMode mode){
+[[nodiscard]] string CHDWallet::GetSecret(uint32_t addrIndex, NetworkMode mode) {
     auto key = _getDerivedKeyAt(addrIndex);
-    if (key.has_value()) {
+    if (key.has_value() && key->IsValid()) {
         KeyIO keyIO(GetChainParams(mode));
         return keyIO.EncodeSecret(key.value());
     }
@@ -437,123 +858,55 @@ void CHDWallet::ExportPastelIDKeys(const string& pastelID, SecureString&& passPh
 }
 
 [[nodiscard]] string CHDWallet::GetSecret(const string& address, NetworkMode mode) {
-    if (IsLocked()) {
-        throw runtime_error("Wallet is locked");
-    }
-
+    printf("GetSecret called for address: %s, mode: %d\n", address.c_str(), static_cast<int>(mode));
     auto keyID = decodeAddress(address, mode);
     if (keyID.has_value()) {
         KeyIO keyIO(GetChainParams(mode));
-        if (auto key = _getDerivedKey(keyID.value()); key.has_value()) {
-            return keyIO.EncodeSecret(key.value());
+        auto key = _getDerivedKey(keyID.value());
+        if (key.has_value() && key->IsValid()) {
+            string secret = keyIO.EncodeSecret(key.value());
+            printf("GetSecret: Key found. Secret: %s\n", secret.c_str());
+            return secret;
         }
-        if (m_addressMapLegacy.contains(address)) {
-            return keyIO.EncodeSecret(m_addressMapLegacy[address]);
-        }
     }
-    throw runtime_error("Address not found");
+    printf("GetSecret failed: Address not found or invalid key.\n");
+    throw runtime_error("Address not found or invalid key");
 }
 
-[[nodiscard]] optional<CKey> CHDWallet::_getDerivedKeyAt(uint32_t addrIndex) {
-    auto extKey = getExtKey(addrIndex);
-    auto key = extKey.value().key;
-    return key;
+[[nodiscard]] bool CHDWallet::ImportPastelIDKeys(const string& pastelID, SecureString&& password, const string& pastelIDDir) {
+    const std::filesystem::path dir(pastelIDDir);
+    const std::filesystem::path file(pastelID);
+    const std::filesystem::path full_path = dir / file;
+
+    CSecureContainer cont;
+    cont.read_from_file(full_path.string(), password);
+    auto pk_legroast = cont.extract_secure_data(SECURE_ITEM_TYPE::pkey_legroast);
+    auto pk_ed448 = cont.extract_secure_data(SECURE_ITEM_TYPE::pkey_ed448);
+    string pub_legroast;
+    cont.get_public_data(PUBLIC_ITEM_TYPE::pubkey_legroast, pub_legroast);
+
+    auto fp_legroast = CPastelID::LegRoastFingerprint(pk_legroast);
+    auto fp_ed448 = CPastelID::PastelIDFingerprint(pk_ed448);
+
+v_uint8 enc_pk_legroast, enc_pk_ed448;
+    encryptWithMasterKey(pk_legroast, fp_legroast, enc_pk_legroast);
+    encryptWithMasterKey(pk_ed448, fp_ed448, enc_pk_ed448);
+
+    m_externalPastelIDs[pastelID] = external_pastel_id{
+        {fp_ed448, enc_pk_ed448},
+        {fp_legroast, enc_pk_legroast},
+        pub_legroast
+    };
+
+    return true;
 }
 
-[[nodiscard]] optional<CKey> CHDWallet::_getDerivedKey(const CKeyID& keyID) {
-    if (m_keyIdIndexMap.contains(keyID)) {
-        return _getDerivedKeyAt(m_keyIdIndexMap[keyID]);
-    }
-    return nullopt;
-}
-
-[[nodiscard]] std::optional<CKey> CHDWallet::_getLegacyKey(const CKeyID& keyID) {
-    auto address = encodeAddress(keyID, NetworkMode::MAINNET);
-    if (m_addressMapLegacy.contains(address)) {
-        return m_addressMapLegacy[address];
-    }
-    return nullopt;
-}
-
-[[nodiscard]] optional<CPubKey> CHDWallet::_getPubKey(const CKeyID& keyID) {
-    if (m_keyIdIndexMap.contains(keyID)) {
-        auto key = _getDerivedKeyAt(m_keyIdIndexMap[keyID]);
-        if (key.has_value())
-            return key->GetPubKey();
-    }
-    return nullopt;
-}
-
-[[nodiscard]] optional<CExtKey> CHDWallet::getExtKey(uint32_t addrIndex) {
-    if (IsLocked()) {
-        throw runtime_error("Wallet is locked");
-    }
-
-    auto accountKey = getAccountKey();
-    if (!accountKey.has_value()) {
-        throw runtime_error("Failed to get account key");
-    }
-    auto extKey = accountKey.value().Derive(addrIndex);
-    accountKey.value().Clear();
-    if (!extKey.has_value()) {
-        throw runtime_error("Failed to get new address");
-    }
-    return extKey;
-}
-
-[[nodiscard]] optional<AccountKey> CHDWallet::getAccountKey() noexcept {
-    auto seed = getDecryptedMnemonicSeed();
-    if (!seed.has_value()) {
-        return nullopt;
-    }
-    return AccountKey::MakeAccount(seed.value(), m_bip44CoinType, 0);
-}
-
-[[nodiscard]] const v_uint8& CHDWallet::getNetworkPrefix(NetworkMode mode, const CChainParams::Base58Type type) {
-    switch (mode) {
-        case NetworkMode::MAINNET:
-            return m_mainnetParams.Base58Prefix(type);
-        case NetworkMode::TESTNET:
-            return m_testnetParams.Base58Prefix(type);
-        case NetworkMode::DEVNET:
-            return m_devnetParams.Base58Prefix(type);
-        default:
-            throw runtime_error("Invalid network mode");
-    }
-}
-
-string CHDWallet::encodeAddress(const CKeyID &id, NetworkMode mode) noexcept {
-    v_uint8 pubKey = getNetworkPrefix(mode, CChainParams::Base58Type::PUBKEY_ADDRESS);
-    pubKey.insert(pubKey.end(), id.begin(), id.end());
-    return EncodeBase58Check(pubKey);
-}
-
-optional<CKeyID> CHDWallet::decodeAddress(const string& address, NetworkMode mode) noexcept {
-    KeyIO keyIO(GetChainParams(mode));
-    if (auto destination = keyIO.DecodeDestination(address); IsKeyDestination(destination)){
-        return std::get<CKeyID>(destination);
-    }
-    return nullopt;
-}
-
-string CHDWallet::encodeExtPubKey(const CExtPubKey &key, NetworkMode mode) noexcept {
-    v_uint8 data = getNetworkPrefix(mode, CChainParams::Base58Type::EXT_PUBLIC_KEY);
-    const size_t size = data.size();
-    data.resize(size + BIP32_EXTKEY_SIZE);
-    key.Encode(data.data() + size);
-    string ret = EncodeBase58Check(data);
-    return ret;
-}
-
-CExtPubKey CHDWallet::decodeExtPubKey(const string &str, NetworkMode mode) noexcept {
-    CExtPubKey key;
-    v_uint8 data;
-    if (DecodeBase58Check(str, data)) {
-        const auto &prefix = getNetworkPrefix(mode, CChainParams::Base58Type::EXT_PUBLIC_KEY);
-        if (data.size() == BIP32_EXTKEY_SIZE + prefix.size() && equal(prefix.begin(), prefix.end(), data.begin()))
-            key.Decode(data.data() + prefix.size());
-    }
-    return key;
+void CHDWallet::ExportPastelIDKeys(const string& pastelID, SecureString&& passPhrase, const string& sDirPath) {
+    auto keyBufPastelID = _getPastelIDKey(pastelID, PastelIDType::PASTELID);
+    auto keyBufLegRoast = _getPastelIDKey(pastelID, PastelIDType::LEGROAST);
+    auto legRoastPubKey = GetPastelID(pastelID, PastelIDType::LEGROAST);
+    CPastelID::CreatePastelKeysFile(sDirPath, std::move(passPhrase),
+                                    pastelID, legRoastPubKey, keyBufPastelID, keyBufLegRoast);
 }
 
 v_uint8 CHDWallet::makePastelIDSeed(uint32_t addrIndex, PastelIDType type) {
@@ -593,6 +946,7 @@ v_uint8 CHDWallet::makePastelIDSeed(uint32_t addrIndex, PastelIDType type) {
         throw runtime_error(e.what());
     }
 }
+
 [[nodiscard]] v_uint8 CHDWallet::_getPastelIDKey(uint32_t pastelIDIndex, PastelIDType type) {
     if (m_indexPastelIDMap.contains(pastelIDIndex)) {
         if (type == PastelIDType::PASTELID) {
@@ -606,25 +960,46 @@ v_uint8 CHDWallet::makePastelIDSeed(uint32_t addrIndex, PastelIDType type) {
     throw runtime_error("PastelID not found");
 }
 
-[[nodiscard]] v_uint8 CHDWallet::_getPastelIDKey(const string &pastelID, PastelIDType type) {
+[[nodiscard]] v_uint8 CHDWallet::_getPastelIDKey(const string& pastelID, PastelIDType type) {
+    printf("_getPastelIDKey called with pastelID: %s, type: %d\n", pastelID.c_str(), static_cast<int>(type));
+    
     if (m_pastelIDIndexMap.contains(pastelID)) {
+        printf("Found pastelID in m_pastelIDIndexMap\n");
         return _getPastelIDKey(m_pastelIDIndexMap[pastelID], type);
     }
+    
     if (m_externalPastelIDs.contains(pastelID)) {
+        printf("Found pastelID in m_externalPastelIDs\n");
         auto externalPastelID = m_externalPastelIDs[pastelID];
         v_uint8 key;
+        
         if (type == PastelIDType::PASTELID) {
-            decryptWithMasterKey(externalPastelID.m_encryptedPastelIDKey.second,
-                                 externalPastelID.m_encryptedPastelIDKey.first, key);
+            printf("Attempting to decrypt PASTELID key\n");
+            if (!decryptWithMasterKey(externalPastelID.m_encryptedPastelIDKey.second,
+                                    externalPastelID.m_encryptedPastelIDKey.first, key)) {
+                printf("ERROR: Failed to decrypt PASTELID key\n");
+                throw runtime_error("Failed to decrypt PASTELID key");
+            }
+            printf("Successfully decrypted PASTELID key\n");
         } else if (type == PastelIDType::LEGROAST) {
-            decryptWithMasterKey(externalPastelID.m_encryptedLegRoastKey.second,
-                                 externalPastelID.m_encryptedLegRoastKey.first, key);
+            printf("Attempting to decrypt LEGROAST key\n");
+            if (!decryptWithMasterKey(externalPastelID.m_encryptedLegRoastKey.second,
+                                    externalPastelID.m_encryptedLegRoastKey.first, key)) {
+                printf("ERROR: Failed to decrypt LEGROAST key\n");
+                throw runtime_error("Failed to decrypt LEGROAST key");
+            }
+            printf("Successfully decrypted LEGROAST key\n");
         } else {
+            printf("ERROR: Invalid PastelID type: %d\n", static_cast<int>(type));
             throw runtime_error("Invalid PastelID type");
         }
+        
+        printf("Returning key of size: %zu\n", key.size());
         return key;
     }
-    throw runtime_error("PastelID key not found");
+    
+    printf("ERROR: PastelID not found in either internal or external storage: %s\n", pastelID.c_str());
+    throw runtime_error(fmt::format("PastelID key not found: {}", pastelID));
 }
 
 bool CHDWallet::encryptWithMasterKey(const v_uint8 &data, const uint256 &nIV, v_uint8 &encryptedData) {
@@ -646,4 +1021,3 @@ bool CHDWallet::decryptWithMasterKey(const v_uint8 &encryptedData, const uint256
     }
     return true;
 }
-

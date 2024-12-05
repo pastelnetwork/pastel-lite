@@ -79,34 +79,33 @@ CTxDestination KeyIO::DecodeDestination(const string& str)
  * \param str - private key string
  * \return CKey object that encapsulates private key
  */
-CKey KeyIO::DecodeSecret(const string& str, string& error)
+CKey KeyIO::DecodeSecret(const std::string& str, std::string& error) // Changed to match header
 {
     CKey key;
     v_uint8 data;
     do
     {
-        if (!DecodeBase58Check(str, data))
-        {
+        if (!DecodeBase58Check(str, data)) {
             error = "failed to decode base58-encoded string";
             break;
         }
-        // secret key prefix
+
         const auto& privkey_prefix = m_KeyConstants.Base58Prefix(KeyConstants::Base58Type::SECRET_KEY);
-        // check that:
-        //   - key string is exactly 32 bytes or 32 bytes with trailing compression flag
-        //   - key string starts with a secret key prefix
         const auto nKeySize = privkey_prefix.size() + CKey::KEY_SIZE;
-        if  ((data.size() == nKeySize ||
-            ((data.size() == nKeySize + 1) && data.back() == 1)) &&
-            equal(privkey_prefix.cbegin(), privkey_prefix.cend(), data.cbegin()))
+        
+        if ((data.size() == nKeySize || (data.size() == nKeySize + 1 && data.back() == 1)) &&
+            std::equal(privkey_prefix.begin(), privkey_prefix.end(), data.begin()))
         {
+            v_uint8 keyData(data.begin() + privkey_prefix.size(), data.begin() + nKeySize);
             const bool bCompressed = data.size() == nKeySize + 1;
-            key.Set(data.cbegin() + privkey_prefix.size(), data.cbegin() + nKeySize, bCompressed);
+            key.SetKeyData(keyData, bCompressed);
+            if (!key.IsValid()) {
+                error = "invalid key data";
+                break;
+            }
         }
-        else
-        {
-            if (data.size() < nKeySize)
-            {
+        else {
+            if (data.size() < nKeySize) {
                 error = fmt::format("length is less than {} bytes", CKey::KEY_SIZE);
                 break;
             }
@@ -114,9 +113,9 @@ CKey KeyIO::DecodeSecret(const string& str, string& error)
             break;
         }
     } while (false);
-    // wipe out memory
+    
     memory_cleanse(data.data(), data.size());
-    return key;
+    return key;  // Returns the key object
 }
 
 /**
@@ -126,19 +125,19 @@ CKey KeyIO::DecodeSecret(const string& str, string& error)
  * \param key - CKey object that encapsulates private key
  * \return string representation of private key
  */
-string KeyIO::EncodeSecret(const CKey& key)
+std::string KeyIO::EncodeSecret(const CKey& key)
 {
     assert(key.IsValid());
     v_uint8 data = m_KeyConstants.Base58Prefix(KeyConstants::Base58Type::SECRET_KEY);
-    data.insert(data.end(), key.cbegin(), key.cend());
-    // add "compressed" flag = 1
+    v_uint8 keyData = key.GetKeyData();
+    data.insert(data.end(), keyData.begin(), keyData.end());
     if (key.IsCompressed())
         data.push_back(1);
-    // base58 encoding
-    string ret = EncodeBase58Check(data);
+    std::string ret = EncodeBase58Check(data);
     memory_cleanse(data.data(), data.size());
     return ret;
 }
+
 
 CExtPubKey KeyIO::DecodeExtPubKey(const string& str)
 {

@@ -34,7 +34,7 @@ class TransactionBuilder{
 public:
     TransactionBuilder() = delete;
     TransactionBuilder(NetworkMode mode, uint32_t nHeight);
-
+    void logError(const string& message);
     void SetExpiration(int nExpiryHeight);
     std::string TxToJSON();
 
@@ -57,22 +57,35 @@ protected:
 
     void setChangeOutput(CAmount nChange);
     void validateAddress(const string& address);
+    
 };
 
 class SendToTransactionBuilder : public TransactionBuilder {
 public:
-    SendToTransactionBuilder(NetworkMode mode, const uint32_t nHeight) : TransactionBuilder(mode, nHeight) {}
-    string Create(const sendto_addresses& sendTo, const string& sendFrom, v_utxos& utxos, CHDWallet& hdWallet);
+    SendToTransactionBuilder(NetworkMode mode, const uint32_t nHeight) 
+        : TransactionBuilder(mode, nHeight) {}
+    
+    using TransactionBuilder::TransactionBuilder;  // Inherit constructors
+    using TransactionBuilder::SetExpiration;       // Make SetExpiration accessible    
+
+    string Create(const sendto_addresses& sendTo, 
+                 const string& sendFrom, 
+                 v_utxos& utxos, 
+                 CHDWallet& hdWallet);
 
 protected:
     void setOutputs() override;
 
 private:
-    sendto_addresses m_sendTo;
+    sendto_addresses m_sendTo; // Ensure this member exists
 };
+
 
 class TicketTransactionBuilder : public TransactionBuilder {
 public:
+    using TransactionBuilder::TransactionBuilder;  // Inherit constructors
+    using TransactionBuilder::SetExpiration;       // Make SetExpiration accessible
+
     TicketTransactionBuilder(NetworkMode mode, const uint32_t nHeight, CAmount extraPayment)
         : TransactionBuilder(mode, nHeight), m_nExtraAmountInPat(extraPayment) {}
 
@@ -93,6 +106,8 @@ private:
 
 class RegisterPastelIDTransactionBuilder : public TicketTransactionBuilder {
 public:
+    using TicketTransactionBuilder::TicketTransactionBuilder;  // Inherit constructors
+    using TicketTransactionBuilder::SetExpiration;            // Make SetExpiration accessible
     RegisterPastelIDTransactionBuilder(NetworkMode mode, const uint32_t nHeight)
         : TicketTransactionBuilder(mode, nHeight, 0) {}
 

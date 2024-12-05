@@ -8,6 +8,7 @@
 #include "crypto/common.h"
 #include "hd_wallet.h"
 #include <json/json.hpp>
+#include <cmath>
 
 #ifdef __EMSCRIPTEN__
 #include <emscripten/bind.h>
@@ -81,13 +82,18 @@ string Pastel::GetAddress(uint32_t addrIndex, NetworkMode mode) {
 
 string Pastel::GetAddressesCount() {
     return wrapResponse([&]() {
-        return m_HDWallet.GetAddressesCount();
+        auto count = m_HDWallet.GetAddressesCount();
+        printf("Total addresses (HD + imported): %u\n", count);
+        return count;
     });
 }
 
 string Pastel::GetAddresses(NetworkMode mode) {
     return wrapResponse([&]() {
-        return m_HDWallet.GetAddresses(mode);
+        printf("Getting all addresses (HD and imported) for mode %d\n", static_cast<int>(mode));
+        auto addresses = m_HDWallet.GetAddresses(mode);
+        printf("Retrieved %zu total addresses\n", addresses.size());
+        return addresses;
     });
 }
 
@@ -99,7 +105,10 @@ string Pastel::MakeNewLegacyAddress(NetworkMode mode) {
 
 string Pastel::ImportLegacyPrivateKey(const string& encoded_key, NetworkMode mode) {
     return wrapResponse([&]() {
-        return m_HDWallet.ImportLegacyPrivateKey(encoded_key, mode);
+        printf("Importing legacy private key and integrating with HD wallet tracking...\n");
+        auto address = m_HDWallet.ImportLegacyPrivateKey(encoded_key, mode);
+        printf("Successfully imported key for address: %s\n", address.c_str());
+        return address;
     });
 }
 
@@ -193,30 +202,85 @@ string Pastel::SignWithKeyAt(uint32_t addrIndex, string message) {
     });
 }
 
-
 string Pastel::GetSecret(uint32_t addrIndex, NetworkMode mode) {
     return wrapResponse([&]() {
-        return m_HDWallet.GetSecret(addrIndex, mode);
+        printf("Getting secret for address index %u (mode: %d)\n", addrIndex, static_cast<int>(mode));
+        auto secret = m_HDWallet.GetSecret(addrIndex, mode);
+        if (secret.empty()) {
+            throw runtime_error("Failed to get secret for address index");
+        }
+        return secret;
     });
 }
 
 string Pastel::GetAddressSecret(const string& address, NetworkMode mode) {
     return wrapResponse([&]() {
-        return m_HDWallet.GetSecret(address, mode);
+        printf("Getting secret for address: %s (mode: %d)\n", address.c_str(), static_cast<int>(mode));
+        auto secret = m_HDWallet.GetSecret(address, mode);
+        if (secret.empty()) {
+            throw runtime_error("Failed to get secret for address");
+        }
+        return secret;
     });
 }
 
 // Transaction functions
 string Pastel::CreateSendToTransaction(NetworkMode mode,
-                                       const vector<pair<string, CAmount>>& sendTo, const string& sendFrom,
-                                       v_utxos& utxos, uint32_t nHeight, int nExpiryHeight) {
-
-    SendToTransactionBuilder sendToTransactionBuilder(mode, nHeight);
-    if (nExpiryHeight > 0)
-        sendToTransactionBuilder.SetExpiration(nExpiryHeight);
-
+                                   const vector<pair<string, CAmount>>& sendTo, 
+                                   const string& sendFrom,
+                                   v_utxos& utxosJson, 
+                                   uint32_t nHeight,
+                                   int nExpiryHeight,
+                                   const string& walletPassword) { // Add password parameter
     return wrapResponse([&]() {
-        return sendToTransactionBuilder.Create(sendTo, sendFrom, utxos, m_HDWallet);
+        stringstream debug;
+        debug << "Starting CreateSendToTransaction\n";
+        debug << "From address: " << sendFrom << "\n";
+        debug << "Total UTXOs: " << utxosJson.size() << "\n";
+        
+        // Log send to details 
+        for (const auto& [addr, amount] : sendTo) {
+            debug << "Sending " << amount << " patoshis to " << addr << "\n";
+        }
+        
+        // Log UTXO details
+        for (const auto& utxo : utxosJson) {
+            debug << "Available UTXO: "
+                 << "Address=" << utxo.address 
+                 << ", TxId=" << utxo.txid
+                 << ", Index=" << utxo.n 
+                 << ", Amount=" << utxo.value << "\n";
+        }
+
+        // First check if wallet is locked and unlock it with provided password
+        if (m_HDWallet.IsLocked()) {
+            try {
+                m_HDWallet.Unlock(walletPassword);
+                if (m_HDWallet.IsLocked()) {
+                    debug << "ERROR: Failed to unlock wallet with provided password\n";
+                    throw runtime_error(debug.str());
+                }
+            } catch (const exception& e) {
+                debug << "ERROR: Failed to unlock wallet: " << e.what() << "\n";
+                throw runtime_error(debug.str());
+            }
+        }
+
+        SendToTransactionBuilder sendToTransactionBuilder(mode, nHeight);
+        if (nExpiryHeight > 0) {
+            debug << "Setting expiry height to: " << nExpiryHeight << "\n";
+            sendToTransactionBuilder.SetExpiration(nExpiryHeight);
+        }
+
+        try {
+            debug << "Attempting to create transaction...\n";
+            auto result = sendToTransactionBuilder.Create(sendTo, sendFrom, utxosJson, m_HDWallet);
+            debug << "Transaction created successfully\n"; 
+            return result;
+        } catch (const exception& e) {
+            debug << "Failed to create transaction: " << e.what() << "\n";
+            throw runtime_error(debug.str());
+        }
     });
 }
 
@@ -244,7 +308,8 @@ sendToJson:
  ]
  */
 string Pastel::CreateSendToTransactionJson(NetworkMode mode, const string& sendToJson, const string& sendFrom,
-                                           const string& utxosJson, uint32_t nHeight, int nExpiryHeight) {
+                                           const string& utxosJson, uint32_t nHeight, int nExpiryHeight,
+                                           const string& walletPassword) {
     if (sendToJson.empty())
         return wrapResponse([&]() {
             throw runtime_error("Empty sendTo JSON");
@@ -264,10 +329,28 @@ string Pastel::CreateSendToTransactionJson(NetworkMode mode, const string& sendT
     for (const auto& item : j)
     {
         string address = item["address"].get<string>();
-        CAmount amount = item["amount"].get<double>();
+        CAmount amount = 0;
+        if (item["amount"].is_string()) {
+            // Parse the string to a double, then convert to CAmount
+            try {
+                string amountStr = item["amount"].get<string>();
+                double amountDouble = std::stod(amountStr);
+                amount = static_cast<CAmount>(round(amountDouble * COIN));
+            } catch (const std::exception& e) {
+                throw runtime_error("Invalid amount format in JSON: " + string(e.what()));
+            }
+        } else if (item["amount"].is_number_float()) {
+            double amountDouble = item["amount"].get<double>();
+            amount = static_cast<CAmount>(round(amountDouble * COIN));
+        } else if (item["amount"].is_number_integer()) {
+            // If amount is provided in patoshis as integer
+            amount = item["amount"].get<int64_t>();
+        } else {
+            throw runtime_error("Invalid amount type in JSON");
+        }
         sendTo.emplace_back(address, amount);
     }
-    return CreateSendToTransaction(mode, sendTo, sendFrom, utxos, nHeight, nExpiryHeight);
+    return CreateSendToTransaction(mode, sendTo, sendFrom, utxos, nHeight, nExpiryHeight, walletPassword);
 }
 
 string Pastel::CreateRegisterPastelIdTransaction(const NetworkMode mode,
@@ -328,12 +411,23 @@ bool Pastel::utxosJsonToVector(const string& utxosJson, v_utxos& utxos) {
         u.address = item["address"].get<string>();
         u.txid = item["txid"].get<string>();
         u.n = item["outputIndex"].get<int>();
-        u.value = item["patoshis"].get<int64_t>();
+        u.value = 0;
+        if (item["patoshis"].is_string()) {
+            try {
+                string valueStr = item["patoshis"].get<string>();
+                u.value = std::stoll(valueStr);
+            } catch (const std::exception& e) {
+                throw runtime_error("Invalid patoshis format in UTXO JSON: " + string(e.what()));
+            }
+        } else if (item["patoshis"].is_number_integer()) {
+            u.value = item["patoshis"].get<int64_t>();
+        } else {
+            throw runtime_error("Invalid patoshis type in UTXO JSON");
+        }
         utxos.push_back(u);
     }
     return !utxos.empty();
 }
-
 
 #ifdef __EMSCRIPTEN__
 EMSCRIPTEN_BINDINGS(PastelModule) {
